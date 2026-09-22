@@ -1,0 +1,10 @@
+CREATE EXTENSION
+ nombre_usuario |  rol  | largo_hash | verifica_2y_pgcrypto | verifica_2a_pgcrypto 
+----------------+-------+------------+----------------------+----------------------
+ admin          | admin |         60 | f                    | t
+(1 row)
+
+psql:<stdin>:63: NOTICE:  OK   >> el hash del seed corresponde a Admin123! (bcrypt valido, coste 10)
+psql:<stdin>:63: NOTICE:  OK   >> el hash del seed rechaza una clave equivocada
+psql:<stdin>:63: NOTICE:  NOTA >> pgcrypto necesita normalizar el prefijo a $2a$ (quirk de pgcrypto, no del hash); la libreria del API lo verifica con el $2y$ tal cual
+DO

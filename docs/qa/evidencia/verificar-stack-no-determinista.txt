@@ -1,0 +1,69 @@
+== BUG-01 · verificar_stack.py falla en un entorno RECIEN LEVANTADO (sin ningun 5xx servido nunca)
+== Evidencia recogida el 21/09/2026 entre las 22:26 y las 22:36 sobre el stack de humo de @devops
+== (docker compose --profile obs, 6 contenedores). Autor: @qa
+==
+== RESUMEN: el chequeo "paneles Grafana con datos" da FALLA -> exit 1 mientras la metrica
+== http_requests_total{status=~"5.."} NO exista todavia. En cuanto se sirve un solo 500 la
+== serie existe (aunque valga 0) y el script vuelve a 9 OK / exit 0 para siempre.
+== Es decir: la primera corrida tras `down -v` + `up` -y el ensayo de la demo- sale en rojo.
+
+--- 1. Estado del entorno en ese momento (stack arriba desde hacia 19 minutos, sin ningun 500) ---
+
+$ curl -sG --data-urlencode 'query=sum by (status) (http_requests_total)' http://localhost:9090/api/v1/query
+[('2xx', '218'), ('4xx', '7')]          <- la serie 5xx no existe
+
+$ curl -sG --data-urlencode 'query=100 * sum(rate(http_requests_total{job="gs08-api", status=~"5.."}[5m]))
+        / clamp_min(sum(rate(http_requests_total{job="gs08-api"}[5m])), 1e-9)' http://localhost:9090/api/v1/query
+{"status":"success","data":{"resultType":"vector","result":[]}}   <- VACIO, no es un 0
+
+--- 2. Corrida del script en ese estado (salida real, 2026-09-21 22:26:xx) ---
+
+========================================================================
+OK    nginx /healthz: HTTP 200 -> 'ok'
+OK    SPA en /: HTTP 200, 371 bytes
+OK    /health API directa: HTTP 200 -> {"status":"ok","motor":"PostgreSQL 16.15 ..."}
+OK    /health via nginx: HTTP 200 -> {"status":"ok","motor":"PostgreSQL 16.15 ..."}
+OK    /metrics: expone http_requests_total
+OK    balanceo nginx: reparto entre 2 instancias: {'172.18.0.6:8000': 6, '172.18.0.5:8000': 6}
+OK    targets Prometheus: 3 targets, caidos: ninguno
+OK    dashboard provisionado: HTTP 200 en http://localhost:3000/d/gs08-matriculas
+FALLA paneles Grafana con datos: 9 paneles revisados, sin datos: ['3. Tasa de errores 5xx (%)', '7. Respuestas por codigo de estado (2xx / 4xx / 5xx)']
+========================================================================
+8 comprobaciones OK, 1 fallas
+exit=1
+
+--- 3. El mismo comando, con un solo 500 servido antes ---
+
+$ for i in 1 2 3; do curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8080/api/v1/error-forzado; done
+500
+500
+500
+
+$ curl -sG --data-urlencode 'query=100 * sum(rate(http_requests_total{job="gs08-api", status=~"5.."}[5m])) / ...'
+{"status":"success","data":{"resultType":"vector","result":[{"metric":{},"value":[1790047471.079,"0"]}]}}
+# ahora la serie existe y vale 0 (rate de un contador que no subio)
+
+$ python scripts/verificar_stack.py
+...
+OK    paneles Grafana con datos: 9 paneles revisados, sin datos: ninguno
+9 comprobaciones OK, 0 fallas
+exit=0
+
+--- 4. Comprobacion del mecanismo (no del trafico reciente): un status que NUNCA se sirvio ---
+---    Las 3 peticiones de arriba son 5xx; nunca hubo una redireccion 3xx:                 ---
+
+$ curl -sG --data-urlencode 'query=sum(rate(http_requests_total{status=~"3.."}[5m]))' http://localhost:9090/api/v1/query
+{"status":"success","data":{"resultType":"vector","result":[]}}
+# selector vacio = "panel sin datos" para el script, aunque el sistema este perfectamente sano
+
+--- 5. Aclaracion de una hipotesis descartada ---
+Esperar 5 minutos y volver a correr NO reproduce el fallo (probado a las 22:35: 9 OK, exit 0):
+una vez que la serie existe, rate() devuelve 0 y el panel tiene datos. El fallo depende de que
+la serie NUNCA haya existido, no de que no haya trafico 5xx en los ultimos minutos.
+
+--- 6. Conclusion ---
+- Criterio afectado: AP-09 #33 ("verificar_stack.py ... exit 0") y el gate de la demo (T4.4).
+- Reproduccion limpia: `docker compose down -v && docker compose --profile obs up -d` y correr el
+  script sin generar errores -> FALLA + exit 1.
+- Arreglo propuesto: si el selector aparece en /api/v1/series como inexistente, reportar
+  ADVERTENCIA (no falla); o que el guion de la demo dispare un 5xx antes de mirar Grafana.

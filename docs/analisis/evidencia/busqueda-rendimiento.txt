@@ -1,0 +1,50 @@
+CREATE EXTENSION
+BEGIN
+INSERT 0 100000
+ANALYZE
+                                                                                 QUERY PLAN                                                                                  
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=3225.34..3225.35 rows=1 width=8) (actual time=104.389..104.390 rows=1 loops=1)
+   Buffers: shared hit=1225
+   ->  Seq Scan on estudiantes  (cost=0.00..3225.24 rows=40 width=0) (actual time=0.018..104.382 rows=2 loops=1)
+         Filter: (((codigo)::text ~~* '%quispe%'::text) OR (dni ~~* '%quispe%'::text) OR ((nombres)::text ~~* '%quispe%'::text) OR ((apellidos)::text ~~* '%quispe%'::text))
+         Rows Removed by Filter: 100010
+         Buffers: shared hit=1225
+ Planning:
+   Buffers: shared hit=68
+ Planning Time: 0.657 ms
+ Execution Time: 104.421 ms
+(10 rows)
+
+CREATE INDEX
+                                                                  QUERY PLAN                                                                  
+----------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=152.23..152.24 rows=1 width=8) (actual time=0.045..0.045 rows=1 loops=1)
+   Buffers: shared hit=11
+   ->  Bitmap Heap Scan on estudiantes  (cost=39.02..152.15 rows=32 width=0) (actual time=0.039..0.042 rows=2 loops=1)
+         Recheck Cond: (lower((((apellidos)::text || ' '::text) || (nombres)::text)) ~~ '%quispe%'::text)
+         Heap Blocks: exact=2
+         Buffers: shared hit=11
+         ->  Bitmap Index Scan on idx_estudiantes_busqueda_trgm  (cost=0.00..39.02 rows=32 width=0) (actual time=0.029..0.030 rows=2 loops=1)
+               Index Cond: (lower((((apellidos)::text || ' '::text) || (nombres)::text)) ~~ '%quispe%'::text)
+               Buffers: shared hit=9
+ Planning:
+   Buffers: shared hit=17
+ Planning Time: 0.312 ms
+ Execution Time: 0.113 ms
+(13 rows)
+
+CREATE EXTENSION
+NOTICE:  extension "unaccent" already exists, skipping
+ ilike_sin_unaccent 
+--------------------
+                  0
+(1 row)
+
+ con_unaccent 
+--------------
+            2
+(1 row)
+
+ERROR:  functions in index expression must be marked IMMUTABLE
+ROLLBACK

@@ -1,0 +1,13 @@
+===== GS08 smoke_api.sh  2026-09-21 22:42:56 =====
+base=http://localhost:8080 api_directa=http://localhost:8000 modo=infra escritura=1 e2e=0
+
+OK    SM-01 [C-34] nginx responde /healthz -> esperado HTTP 200 + 'ok', obtenido HTTP 200, cuerpo='ok'
+OK    SM-02 [C-34] /api/v1/health por el proxy -> esperado HTTP 200 status=ok, obtenido HTTP 200, {"status":"ok","motor":"PostgreSQL16.15onx86_64-pc-linux-musl","instancia":"ca662ba8ec69"}
+OK    SM-03 [C-34] /api/v1/health directo al API -> esperado HTTP 200, obtenido HTTP 200
+OK    SM-04 [C-34] /metrics expone Prometheus -> esperado HTTP 200 + http_requests_total + histograma de latencia, obtenido HTTP 200, 4 lineas http_requests_total, 16 series de histograma
+OK    SM-05 [C-35] balanceo nginx entre 2 instancias -> esperado 2 direcciones distintas, obtenido reparto:       3 172.18.0.5:8000       3 172.18.0.6:8000 
+OK    SM-06 [C-33] SPA servida y ruta profunda -> esperado HTTP 200 en / y en /estudiantes, obtenido / -> ok, /estudiantes -> HTTP 200
+OK    SM-07 [C-33] server_tokens off -> esperado cabecera Server sin version, obtenido Server: nginx
+OK    SM-08 [C-36] Grafana con el dashboard provisionado -> esperado HTTP 200, obtenido HTTP 200
+
+8 comprobaciones OK, 0 fallas, 0 bloqueadas

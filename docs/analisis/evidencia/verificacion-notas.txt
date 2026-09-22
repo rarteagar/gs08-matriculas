@@ -1,0 +1,283 @@
+Border style is 2.
+SET
+CREATE TABLE
+CREATE FUNCTION
+CREATE FUNCTION
+psql:<stdin>:57: NOTICE:  OK   >> 04-notas.sql: existe la tabla notas
++-------------------------------------+
+|                check                |
++-------------------------------------+
+| 04-notas.sql: existe la tabla notas |
++-------------------------------------+
+(1 row)
+
++-----------------------------------------------+
+|                     check                     |
++-----------------------------------------------+
+| 04-notas.sql: existe la vista v_notas_detalle |
++-----------------------------------------------+
+(1 row)
+
+psql:<stdin>:61: NOTICE:  OK   >> 04-notas.sql: existe la vista v_notas_detalle
+psql:<stdin>:67: NOTICE:  OK   >> 04-notas.sql: notas tiene sus 8 columnas
++------------------------------------------+
+|                  check                   |
++------------------------------------------+
+| 04-notas.sql: notas tiene sus 8 columnas |
++------------------------------------------+
+(1 row)
+
+psql:<stdin>:72: NOTICE:  OK   >> 04-notas.sql: 3 CHECK en notas (tipo, rango de la nota, numero >= 1)
++----------------------------------------------------------------------+
+|                                check                                 |
++----------------------------------------------------------------------+
+| 04-notas.sql: 3 CHECK en notas (tipo, rango de la nota, numero >= 1) |
++----------------------------------------------------------------------+
+(1 row)
+
++---------------------------------------------------+
+|                       check                       |
++---------------------------------------------------+
+| 04-notas.sql: UNIQUE (matricula_id, tipo, numero) |
++---------------------------------------------------+
+(1 row)
+
+psql:<stdin>:77: NOTICE:  OK   >> 04-notas.sql: UNIQUE (matricula_id, tipo, numero)
++---------------------------------------------------------------+
+|                             check                             |
++---------------------------------------------------------------+
+| 04-notas.sql: fk_notas_matricula con ON DELETE CASCADE (C-29) |
++---------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:81: NOTICE:  OK   >> 04-notas.sql: fk_notas_matricula con ON DELETE CASCADE (C-29)
++---------------------------------------------------------------------------+
+|                                   check                                   |
++---------------------------------------------------------------------------+
+| 04-notas.sql: existe el trigger RN-14 (no se califica matricula retirada) |
++---------------------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:85: NOTICE:  OK   >> 04-notas.sql: existe el trigger RN-14 (no se califica matricula retirada)
+psql:<stdin>:90: NOTICE:  OK   >> 04-notas.sql: los 2 indices de notas
++--------------------------------------+
+|                check                 |
++--------------------------------------+
+| 04-notas.sql: los 2 indices de notas |
++--------------------------------------+
+(1 row)
+
+psql:<stdin>:99: NOTICE:  OK   >> RN-16 (T1.5): nota=21 -> check_violation (rango 0..20)  (rechazado, SQLSTATE 23514)
++--------------------------------------------------------+
+|                      check_error                       |
++--------------------------------------------------------+
+| RN-16 (T1.5): nota=21 -> check_violation (rango 0..20) |
++--------------------------------------------------------+
+(1 row)
+
++-----------------------------------+
+|            check_error            |
++-----------------------------------+
+| RN-16: nota=-1 -> check_violation |
++-----------------------------------+
+(1 row)
+
+psql:<stdin>:104: NOTICE:  OK   >> RN-16: nota=-1 -> check_violation  (rechazado, SQLSTATE 23514)
++-----------------------------------------------------------------------+
+|                              check_error                              |
++-----------------------------------------------------------------------+
+| RN-16: tipo="examen" -> check_violation (solo practica|parcial|final) |
++-----------------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:109: NOTICE:  OK   >> RN-16: tipo="examen" -> check_violation (solo practica|parcial|final)  (rechazado, SQLSTATE 23514)
+psql:<stdin>:114: NOTICE:  OK   >> RN-16: numero=0 -> check_violation  (rechazado, SQLSTATE 23514)
++------------------------------------+
+|            check_error             |
++------------------------------------+
+| RN-16: numero=0 -> check_violation |
++------------------------------------+
+(1 row)
+
+BEGIN
+INSERT 0 1
++------------------------------------------------------------------------------------------+
+|                                       check_error                                        |
++------------------------------------------------------------------------------------------+
+| RN-16 (T1.5): duplicado (matricula_id, tipo, numero) -> unique_violation (409 en la API) |
++------------------------------------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:122: NOTICE:  OK   >> RN-16 (T1.5): duplicado (matricula_id, tipo, numero) -> unique_violation (409 en la API)  (rechazado, SQLSTATE 23505)
+ROLLBACK
++------------------------------------------------------------+
+|                           check                            |
++------------------------------------------------------------+
+| precondicion RN-14: la matricula 13 del seed esta retirada |
++------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:128: NOTICE:  OK   >> precondicion RN-14: la matricula 13 del seed esta retirada
++--------------------------------------------------------------------------------+
+|                                  check_error                                   |
++--------------------------------------------------------------------------------+
+| RN-14 (T1.5): nota sobre matricula retirada -> check_violation (409 en la API) |
++--------------------------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:133: NOTICE:  OK   >> RN-14 (T1.5): nota sobre matricula retirada -> check_violation (409 en la API)  (rechazado, SQLSTATE 23514)
+psql:<stdin>:138: NOTICE:  OK   >> nota de una matricula inexistente -> foreign_key_violation  (rechazado, SQLSTATE 23503)
++------------------------------------------------------------+
+|                        check_error                         |
++------------------------------------------------------------+
+| nota de una matricula inexistente -> foreign_key_violation |
++------------------------------------------------------------+
+(1 row)
+
+BEGIN
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
++-------------------------------------------------------------+
+|                            check                            |
++-------------------------------------------------------------+
+| RN-16: la nota 0 y la nota 20 se aceptan (bordes del rango) |
++-------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:149: NOTICE:  OK   >> RN-16: la nota 0 y la nota 20 se aceptan (bordes del rango)
++---------------------------------------------------------------------------+
+|                                   check                                   |
++---------------------------------------------------------------------------+
+| RN-16: numeric(4,2) redondea 16.005 -> 16.01 (documentado, no silencioso) |
++---------------------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:152: NOTICE:  OK   >> RN-16: numeric(4,2) redondea 16.005 -> 16.01 (documentado, no silencioso)
+ROLLBACK
+BEGIN
+INSERT 0 1
+INSERT 0 4
++-----------------------------------------------------------------------+
+|                                 check                                 |
++-----------------------------------------------------------------------+
+| RN-15: nota del curso C101 = media aritmetica de 14, 16 y 18 -> 16.00 |
++-----------------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:172: NOTICE:  OK   >> RN-15: nota del curso C101 = media aritmetica de 14, 16 y 18 -> 16.00
+psql:<stdin>:183: NOTICE:  OK   >> C-28: la boleta del estudiante 1 en 2026-02 tiene 3 cursos (sus 3 matriculas)
++-------------------------------------------------------------------------------+
+|                                     check                                     |
++-------------------------------------------------------------------------------+
+| C-28: la boleta del estudiante 1 en 2026-02 tiene 3 cursos (sus 3 matriculas) |
++-------------------------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:194: NOTICE:  OK   >> C-28: el curso sin notas sale con nota null (no 0, y no entra al promedio)
++----------------------------------------------------------------------------+
+|                                   check                                    |
++----------------------------------------------------------------------------+
+| C-28: el curso sin notas sale con nota null (no 0, y no entra al promedio) |
++----------------------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:206: NOTICE:  OK   >> RN-15: promedio del periodo (ponderado por creditos: 16x4 + 11x3 sobre 7) -> 13.86
++------------------------------------------------------------------------------------+
+|                                       check                                        |
++------------------------------------------------------------------------------------+
+| RN-15: promedio del periodo (ponderado por creditos: 16x4 + 11x3 sobre 7) -> 13.86 |
++------------------------------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:217: NOTICE:  OK   >> RN-15: se distingue del promedio simple (13.50): el ponderado por creditos es 13.86
++-------------------------------------------------------------------------------------+
+|                                        check                                        |
++-------------------------------------------------------------------------------------+
+| RN-15: se distingue del promedio simple (13.50): el ponderado por creditos es 13.86 |
++-------------------------------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:224: NOTICE:  OK   >> v_notas_detalle: las 3 notas de la matricula 1 con estudiante y curso
++-----------------------------------------------------------------------+
+|                                 check                                 |
++-----------------------------------------------------------------------+
+| v_notas_detalle: las 3 notas de la matricula 1 con estudiante y curso |
++-----------------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:229: NOTICE:  OK   >> v_notas_detalle: trae el estudiante con el formato "apellidos, nombres"
++-------------------------------------------------------------------------+
+|                                  check                                  |
++-------------------------------------------------------------------------+
+| v_notas_detalle: trae el estudiante con el formato "apellidos, nombres" |
++-------------------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:233: NOTICE:  OK   >> v_notas_detalle: trae el nombre del curso y su periodo
++--------------------------------------------------------+
+|                         check                          |
++--------------------------------------------------------+
+| v_notas_detalle: trae el nombre del curso y su periodo |
++--------------------------------------------------------+
+(1 row)
+
+UPDATE 1
++--------------------------------------------------------------------+
+|                               check                                |
++--------------------------------------------------------------------+
+| RN-14/D-06: retirar la matricula conserva las notas ya registradas |
++--------------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:239: NOTICE:  OK   >> RN-14/D-06: retirar la matricula conserva las notas ya registradas
+DELETE 1
++-------------------------------------------------------+
+|                         check                         |
++-------------------------------------------------------+
+| C-29: borrar la matricula borra sus notas por cascada |
++-------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:245: NOTICE:  OK   >> C-29: borrar la matricula borra sus notas por cascada
+DELETE 1
++-------------------------------------------------------------------------------------+
+|                                        check                                        |
++-------------------------------------------------------------------------------------+
+| C-29: borrar el estudiante borra sus matriculas y sus notas (cascada en dos saltos) |
++-------------------------------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:252: NOTICE:  OK   >> C-29: borrar el estudiante borra sus matriculas y sus notas (cascada en dos saltos)
+ROLLBACK
+psql:<stdin>:259: NOTICE:  OK   >> ROLLBACK: la tabla notas quedo vacia (no se dejo basura)
++----------------------------------------------------------+
+|                          check                           |
++----------------------------------------------------------+
+| ROLLBACK: la tabla notas quedo vacia (no se dejo basura) |
++----------------------------------------------------------+
+(1 row)
+
++-------------------------------------------------+
+|                      check                      |
++-------------------------------------------------+
+| ROLLBACK: las 24 matriculas del seed siguen ahi |
++-------------------------------------------------+
+(1 row)
+
+psql:<stdin>:260: NOTICE:  OK   >> ROLLBACK: las 24 matriculas del seed siguen ahi
+psql:<stdin>:263: NOTICE:  OK   >> ROLLBACK: la unica matricula retirada del seed sigue siendo la 13
++-------------------------------------------------------------------+
+|                               check                               |
++-------------------------------------------------------------------+
+| ROLLBACK: la unica matricula retirada del seed sigue siendo la 13 |
++-------------------------------------------------------------------+
+(1 row)
+
++-------------------------------------------+
+| comprobaciones_ok_fuera_de_la_transaccion |
++-------------------------------------------+
+|                                        18 |
++-------------------------------------------+
+(1 row)
+

@@ -1,0 +1,9 @@
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+
+[notice] A new release of pip is available: 25.0.1 -> 26.2.1
+[notice] To update, run: pip install --upgrade pip
+bcrypt (PyPI) version: 4.2.1
+prefijo $2y$ (tal cual el legacy)  Admin123!          -> True
+prefijo $2y$ (tal cual el legacy)  clave_equivocada   -> False
+prefijo $2b$ (mismo digest)        Admin123!          -> True
+prefijo $2b$ (mismo digest)        clave_equivocada   -> False

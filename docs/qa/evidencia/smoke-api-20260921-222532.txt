@@ -1,0 +1,13 @@
+===== GS08 smoke_api.sh  2026-09-21 22:25:34 =====
+base=http://localhost:8080 api_directa=http://localhost:8000 modo=infra escritura=1 e2e=0
+
+OK    SM-07 [AP-09] server_tokens off -> esperado cabecera Server sin version, obtenido Server: 
+OK    SM-08 [AP-09] Grafana con el dashboard provisionado -> esperado HTTP 200, obtenido HTTP 200
+FALLA SM-01 [AP-09] nginx responde /healthz -> esperado HTTP 200 + 'ok', OBtenido HTTP 000, cuerpo=''
+FALLA SM-02 [AP-09] /api/v1/health por el proxy -> esperado HTTP 200 status=ok, OBtenido HTTP 000, 
+FALLA SM-03 [AP-09] /api/v1/health directo al API -> esperado HTTP 200, OBtenido HTTP 000
+FALLA SM-04 [AP-09] /metrics expone Prometheus -> esperado HTTP 200 + http_requests_total, OBtenido HTTP 000
+FALLA SM-05 [AP-09] balanceo nginx entre 2 instancias -> esperado 2 direcciones distintas, OBtenido reparto:       3 172.18.0.5:8000       3 172.18.0.6:8000 
+FALLA SM-06 [AP-09] SPA servida y ruta profunda -> esperado HTTP 200 en / y en /estudiantes, OBtenido / -> falla, /estudiantes -> HTTP 000
+
+2 comprobaciones OK, 6 fallas, 0 bloqueadas

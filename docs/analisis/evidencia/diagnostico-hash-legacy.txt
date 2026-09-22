@@ -1,0 +1,28 @@
+CREATE EXTENSION
+NOTICE:  extension "pgcrypto" already exists, skipping
+SELECT 1
+                       hash_generado_2a                       | verifica_roundtrip | verifica_clave_mala 
+--------------------------------------------------------------+--------------------+---------------------
+ $2a$10$U1jiM3QYftMmS1am7RbIA.6mjx1o0NlDmTVWoR5iFmuducnBF7zuC | t                  | f
+(1 row)
+
+SELECT 1
+                        hash_del_seed                         | largo | verifica_con_2y | verifica_con_2a 
+--------------------------------------------------------------+-------+-----------------+-----------------
+ $2y$10$Tzgm/meEuR9o/nxq1ocKBu01ncP.pbnMay7a1aqWsuwXA4Q9Y9nzu |    60 | f               | t
+(1 row)
+
+   candidata    | coincide 
+----------------+----------
+ Admin123!      | t
+ Admin123       | f
+ admin123!      | f
+ Admin1234!     | f
+ Admin2026!     | f
+ admin          | f
+ Admin          | f
+ Horizonte123!  | f
+ Horizonte2026! | f
+ Admin123!      | f
+(10 rows)
+

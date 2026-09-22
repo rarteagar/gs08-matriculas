@@ -1,0 +1,34 @@
+===== GS08 smoke_api.sh  2026-09-21 22:34:49 =====
+base=http://localhost:8099 api_directa=http://localhost:8000 modo=contrato escritura=1 e2e=1
+
+OK    SM-09 [AP-01] login con usuario -> esperado HTTP 200 + token, obtenido HTTP 200, token=fake-token-a...
+OK    SM-10 [AP-01] login por email del seed (admin@horizonte.edu.pe) -> esperado HTTP 200, obtenido HTTP 200, {"access_token":"fake-token-admin","token_type":"bearer"}
+OK    SM-11 [AP-01] clave equivocada no emite token -> esperado HTTP 401, obtenido HTTP 401, {"detail":"usuariooclaveincorrectos"}
+OK    SM-12 [AP-01] sin token no se lee el listado -> esperado HTTP 401, obtenido HTTP 401
+OK    SM-13 [AP-01] token falsificado no sirve -> esperado HTTP 401, obtenido HTTP 401
+OK    SM-15 [AP-03] buscador ILIKE (mayusculas y tildes) -> esperado misma cantidad >=1 en los 3, obtenido huaman=2 Huamán=2 HUAMAN=2 
+OK    SM-16 [AP-03] busqueda por codigo y por DNI -> esperado 1 y 1, obtenido codigo=1 dni=1
+OK    SM-17 [AP-03] page_size fuera de rango -> esperado 422 y 422, obtenido 200 -> 422, 0 -> 422
+OK    SM-18 [AP-03] listado paginado 25 -> esperado 25 filas y total=12, obtenido filas=25 total=12
+OK    SM-20 [AP-04] curso con creditos=11 -> esperado HTTP 422, obtenido HTTP 422, {"detail":"creditosfueraderango(1..10)"}
+OK    SM-21 [AP-05] periodo 2026-13 -> esperado HTTP 422, obtenido HTTP 422, {"detail":"periodoinvalido(AAAA-MM)"}
+OK    SM-22 [AP-05] matricula duplicada (est 1 + curso 1 + 2026-02) -> esperado HTTP 409 con el mensaje del legacy, obtenido HTTP 409, {"detail":"Eseestudianteyaestamatriculadoenesecursoparaelperiodoindicado"}
+OK    SM-23 [AP-05] matricula de estudiante inexistente -> esperado HTTP 404, obtenido HTTP 404, {"detail":"estudiantenoencontrado"}
+OK    SM-24 [AP-05] listado de matriculas del periodo -> esperado HTTP 200 y total=24, obtenido HTTP 200, total=24
+OK    SM-25 [AP-08] DELETE con matriculas no borra nada -> esperado 409 con matriculas=2 y el estudiante sigue (200), obtenido DELETE -> HTTP 409 {'matriculas':2}, GET -> HTTP 200
+OK    SM-26 [AP-06] rol asistente no entra a /usuarios -> esperado HTTP 403, obtenido HTTP 403, {"detail":"soloelroladmin"}
+OK    SM-27 [AP-05] estudiante inexistente -> esperado HTTP 404, obtenido HTTP 404
+OK    E2E-01 [paso 4] alta de estudiante -> esperado HTTP 201 + id, obtenido HTTP 201, id=99
+OK    E2E-01 [paso 6] la segunda matricula igual da 409 -> esperado HTTP 409, obtenido HTTP 409, {"detail":"Eseestudianteyaestamatriculadoenesecursoparaelperiodoindicado"}
+OK    E2E-01 [paso 9] boleta: 14/16/18 -> 16 (media aritmetica) -> esperado nota del curso y promedio = 16, obtenido nota_curso=16.0 promedio=16.0
+OK    E2E-01 [AP-08] limpieza con ?confirmar=true -> esperado HTTP 204, obtenido HTTP 204
+FALLA SM-14 [AP-02] KPIs del seed 12/7/23/1 -> esperado 12 | 7 | 23 | 1, obtenido 12 | 7 | 22 | 1
+FALLA SM-19 [AP-03] DNI de 7 digitos -> esperado HTTP 422 (nunca 500), obtenido HTTP 201, {"id":99,"codigo":"QA-X1","dni":"1234567"}
+FALLA E2E-01 [paso 6] matricula del estudiante nuevo -> esperado HTTP 201 + id, obtenido HTTP 409, id=
+FALLA E2E-01 [paso 8] nota practica=14 -> HTTP 000, {"detail":"Eseestudianteyaestamatriculadoenesecursoparaelperiodoindicado"}
+FALLA E2E-01 [paso 8] nota parcial=16 -> HTTP 000, {"detail":"Eseestudianteyaestamatriculadoenesecursoparaelperiodoindicado"}
+FALLA E2E-01 [paso 8] nota final=18 -> HTTP 000, {"detail":"Eseestudianteyaestamatriculadoenesecursoparaelperiodoindicado"}
+FALLA E2E-01 [paso 8] nota duplicada -> esperado HTTP 409, obtenido HTTP 000
+FALLA E2E-01 [paso 8] nota 21 fuera de rango -> esperado HTTP 422, obtenido HTTP 000
+
+21 comprobaciones OK, 8 fallas, 0 bloqueadas

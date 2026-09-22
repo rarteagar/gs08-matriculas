@@ -1,0 +1,451 @@
+Border style is 2.
+SET
+CREATE FUNCTION
+CREATE TABLE
+CREATE FUNCTION
+psql:<stdin>:66: NOTICE:  OK   >> 01-schema.sql + 04-notas.sql: estan las 5 tablas (las 4 del legacy + notas)
++-----------------------------------------------------------------------------+
+|                                    check                                    |
++-----------------------------------------------------------------------------+
+| 01-schema.sql + 04-notas.sql: estan las 5 tablas (las 4 del legacy + notas) |
++-----------------------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:70: NOTICE:  OK   >> 02-view.sql: existe la vista v_matriculas_detalle
++---------------------------------------------------+
+|                       check                       |
++---------------------------------------------------+
+| 02-view.sql: existe la vista v_matriculas_detalle |
++---------------------------------------------------+
+(1 row)
+
+psql:<stdin>:77: NOTICE:  OK   >> 01-schema.sql: matriculas tiene sus 7 columnas (las 6 del legacy + creado_en)
++-------------------------------------------------------------------------------+
+|                                     check                                     |
++-------------------------------------------------------------------------------+
+| 01-schema.sql: matriculas tiene sus 7 columnas (las 6 del legacy + creado_en) |
++-------------------------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:85: NOTICE:  OK   >> 01-schema.sql: 16 CHECK declarados (4 usuarios, 6 estudiantes, 4 cursos, 2 matriculas)
++----------------------------------------------------------------------------------------+
+|                                         check                                          |
++----------------------------------------------------------------------------------------+
+| 01-schema.sql: 16 CHECK declarados (4 usuarios, 6 estudiantes, 4 cursos, 2 matriculas) |
++----------------------------------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:90: NOTICE:  OK   >> 01-schema.sql: 6 UNIQUE (codigo/dni/email/nombre_usuario + uq_matriculas_estudiante_curso_periodo)
++----------------------------------------------------------------------------------------------------+
+|                                               check                                                |
++----------------------------------------------------------------------------------------------------+
+| 01-schema.sql: 6 UNIQUE (codigo/dni/email/nombre_usuario + uq_matriculas_estudiante_curso_periodo) |
++----------------------------------------------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:95: NOTICE:  OK   >> 01-schema.sql: 2 FK en el esquema base (matriculas -> estudiantes y matriculas -> cursos)
++-------------------------------------------------------------------------------------------+
+|                                           check                                           |
++-------------------------------------------------------------------------------------------+
+| 01-schema.sql: 2 FK en el esquema base (matriculas -> estudiantes y matriculas -> cursos) |
++-------------------------------------------------------------------------------------------+
+(1 row)
+
++-------------------------------------------------------------------------------+
+|                                     check                                     |
++-------------------------------------------------------------------------------+
+| 01-schema.sql: fk_matriculas_curso es ON DELETE CASCADE (igual que el legacy) |
++-------------------------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:99: NOTICE:  OK   >> 01-schema.sql: fk_matriculas_curso es ON DELETE CASCADE (igual que el legacy)
+psql:<stdin>:105: NOTICE:  OK   >> 01-schema.sql: existen los indices de las FK de matriculas (MySQL los creaba solo, PostgreSQL no)
++---------------------------------------------------------------------------------------------------+
+|                                               check                                               |
++---------------------------------------------------------------------------------------------------+
+| 01-schema.sql: existen los indices de las FK de matriculas (MySQL los creaba solo, PostgreSQL no) |
++---------------------------------------------------------------------------------------------------+
+(1 row)
+
++--------------------------------+
+|             check              |
++--------------------------------+
+| 03-seed.sql: 1 usuario (admin) |
++--------------------------------+
+(1 row)
+
+psql:<stdin>:110: NOTICE:  OK   >> 03-seed.sql: 1 usuario (admin)
++-----------------------------+
+|            check            |
++-----------------------------+
+| 03-seed.sql: 12 estudiantes |
++-----------------------------+
+(1 row)
+
+psql:<stdin>:111: NOTICE:  OK   >> 03-seed.sql: 12 estudiantes
++-----------------------+
+|         check         |
++-----------------------+
+| 03-seed.sql: 7 cursos |
++-----------------------+
+(1 row)
+
+psql:<stdin>:112: NOTICE:  OK   >> 03-seed.sql: 7 cursos
+psql:<stdin>:113: NOTICE:  OK   >> 03-seed.sql: 24 matriculas
++----------------------------+
+|           check            |
++----------------------------+
+| 03-seed.sql: 24 matriculas |
++----------------------------+
+(1 row)
+
++-------------------------------------------------------------------------+
+|                                  check                                  |
++-------------------------------------------------------------------------+
+| 03-seed.sql: 1 matricula retirada (estudiante 7 / curso 4) y 23 activas |
++-------------------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:116: NOTICE:  OK   >> 03-seed.sql: 1 matricula retirada (estudiante 7 / curso 4) y 23 activas
++------------------------------------------------------------------------+
+|                                 check                                  |
++------------------------------------------------------------------------+
+| 03-seed.sql: los acentos se cargaron intactos (UTF-8 de punta a punta) |
++------------------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:120: NOTICE:  OK   >> 03-seed.sql: los acentos se cargaron intactos (UTF-8 de punta a punta)
+psql:<stdin>:123: NOTICE:  OK   >> 03-seed.sql: los 6 apellidos acentuados del legacy llegaron completos
++-----------------------------------------------------------------------+
+|                                 check                                 |
++-----------------------------------------------------------------------+
+| 03-seed.sql: los 6 apellidos acentuados del legacy llegaron completos |
++-----------------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:130: NOTICE:  OK   >> 02-view.sql: la vista devuelve las 24 matriculas (JOIN completo, sin perdidas)
++--------------------------------------------------------------------------------+
+|                                     check                                      |
++--------------------------------------------------------------------------------+
+| 02-view.sql: la vista devuelve las 24 matriculas (JOIN completo, sin perdidas) |
++--------------------------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:135: NOTICE:  OK   >> 02-view.sql: la vista arma "apellidos, nombres" igual que el legacy
++---------------------------------------------------------------------+
+|                                check                                |
++---------------------------------------------------------------------+
+| 02-view.sql: la vista arma "apellidos, nombres" igual que el legacy |
++---------------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:140: NOTICE:  OK   >> 02-view.sql: las 23 activas traen creditos del curso (dato que usa el listado)
++--------------------------------------------------------------------------------+
+|                                     check                                      |
++--------------------------------------------------------------------------------+
+| 02-view.sql: las 23 activas traen creditos del curso (dato que usa el listado) |
++--------------------------------------------------------------------------------+
+(1 row)
+
++-----------------------------------+
+|               check               |
++-----------------------------------+
+| dashboard: 12 estudiantes activos |
++-----------------------------------+
+(1 row)
+
+psql:<stdin>:145: NOTICE:  OK   >> dashboard: 12 estudiantes activos
++-----------------------------+
+|            check            |
++-----------------------------+
+| dashboard: 7 cursos activos |
++-----------------------------+
+(1 row)
+
+psql:<stdin>:146: NOTICE:  OK   >> dashboard: 7 cursos activos
++----------------------------------+
+|              check               |
++----------------------------------+
+| dashboard: 23 matriculas activas |
++----------------------------------+
+(1 row)
+
+psql:<stdin>:149: NOTICE:  OK   >> dashboard: 23 matriculas activas
+psql:<stdin>:150: NOTICE:  OK   >> dashboard: 1 usuario activo
++-----------------------------+
+|            check            |
++-----------------------------+
+| dashboard: 1 usuario activo |
++-----------------------------+
+(1 row)
+
+psql:<stdin>:154: NOTICE:  OK   >> dashboard: el agrupado por curso suma 23 (mismo total que el KPI)
++-------------------------------------------------------------------+
+|                               check                               |
++-------------------------------------------------------------------+
+| dashboard: el agrupado por curso suma 23 (mismo total que el KPI) |
++-------------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:166: NOTICE:  OK   >> trampa MySQL->PostgreSQL: LIKE %quispe% devuelve 0 (el legacy devolvia 2 por la collation _ci)
++------------------------------------------------------------------------------------------------+
+|                                             check                                              |
++------------------------------------------------------------------------------------------------+
+| trampa MySQL->PostgreSQL: LIKE %quispe% devuelve 0 (el legacy devolvia 2 por la collation _ci) |
++------------------------------------------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:172: NOTICE:  OK   >> buscador del listado con ILIKE (q=quispe): las 2 matriculas del legacy
++------------------------------------------------------------------------+
+|                                 check                                  |
++------------------------------------------------------------------------+
+| buscador del listado con ILIKE (q=quispe): las 2 matriculas del legacy |
++------------------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:179: NOTICE:  OK   >> BUG-07: sin unaccent, q=huaman da 0 y q=Huamán da 1 (ILIKE no quita tildes)
++-----------------------------------------------------------------------------+
+|                                    check                                    |
++-----------------------------------------------------------------------------+
+| BUG-07: sin unaccent, q=huaman da 0 y q=Huamán da 1 (ILIKE no quita tildes) |
++-----------------------------------------------------------------------------+
+(1 row)
+
++-------------------------------------------------------------------------+
+|                                  check                                  |
++-------------------------------------------------------------------------+
+| 01-schema.sql: la extension unaccent esta instalada (requisito de C-08) |
++-------------------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:183: NOTICE:  OK   >> 01-schema.sql: la extension unaccent esta instalada (requisito de C-08)
++-----------------------------------------------------------------------------------+
+|                                       check                                       |
++-----------------------------------------------------------------------------------+
+| C-08 (estudiantes): huaman / Huamán / HUAMAN devuelven la MISMA cantidad de filas |
++-----------------------------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:193: NOTICE:  OK   >> C-08 (estudiantes): huaman / Huamán / HUAMAN devuelven la MISMA cantidad de filas
++-----------------------------------------------------------------+
+|                              check                              |
++-----------------------------------------------------------------+
+| C-08 endpoint /estudiantes con q=huaman: 1 fila (Quispe Huamán) |
++-----------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:200: NOTICE:  OK   >> C-08 endpoint /estudiantes con q=huaman: 1 fila (Quispe Huamán)
+psql:<stdin>:205: NOTICE:  OK   >> C-08 endpoint /matriculas con q=huaman: 2 filas (las 2 matriculas de Quispe Huamán)
++-------------------------------------------------------------------------------------+
+|                                        check                                        |
++-------------------------------------------------------------------------------------+
+| C-08 endpoint /matriculas con q=huaman: 2 filas (las 2 matriculas de Quispe Huamán) |
++-------------------------------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:208: NOTICE:  OK   >> filtro de periodo (2026-02): 24 filas
++---------------------------------------+
+|                 check                 |
++---------------------------------------+
+| filtro de periodo (2026-02): 24 filas |
++---------------------------------------+
+(1 row)
+
++--------------------------------------------------------------+
+|                            check                             |
++--------------------------------------------------------------+
+| selectores de periodo del SPA: 1 periodo distinto en el seed |
++--------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:211: NOTICE:  OK   >> selectores de periodo del SPA: 1 periodo distinto en el seed
+psql:<stdin>:220: NOTICE:  OK   >> RN-08: estudiante 1 ya matriculado en curso 1 / 2026-02 -> unique_violation  (rechazado, SQLSTATE 23505)
++-----------------------------------------------------------------------------+
+|                                 check_error                                 |
++-----------------------------------------------------------------------------+
+| RN-08: estudiante 1 ya matriculado en curso 1 / 2026-02 -> unique_violation |
++-----------------------------------------------------------------------------+
+(1 row)
+
++-------------------------------------------------------------+
+|                         check_error                         |
++-------------------------------------------------------------+
+| RN-06: periodo 2026-13 (mes inexistente) -> check_violation |
++-------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:226: NOTICE:  OK   >> RN-06: periodo 2026-13 (mes inexistente) -> check_violation  (rechazado, SQLSTATE 23514)
+psql:<stdin>:232: NOTICE:  OK   >> RN-06: periodo 2026/02 (formato no AAAA-MM) -> check_violation  (rechazado, SQLSTATE 23514)
++----------------------------------------------------------------+
+|                          check_error                           |
++----------------------------------------------------------------+
+| RN-06: periodo 2026/02 (formato no AAAA-MM) -> check_violation |
++----------------------------------------------------------------+
+(1 row)
+
++------------------------------------------------------------------------+
+|                              check_error                               |
++------------------------------------------------------------------------+
+| RN-07: estado de matricula fuera de activa/retirado -> check_violation |
++------------------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:238: NOTICE:  OK   >> RN-07: estado de matricula fuera de activa/retirado -> check_violation  (rechazado, SQLSTATE 23514)
+psql:<stdin>:244: NOTICE:  OK   >> RN-09: matricula de un estudiante inexistente -> foreign_key_violation  (rechazado, SQLSTATE 23503)
++------------------------------------------------------------------------+
+|                              check_error                               |
++------------------------------------------------------------------------+
+| RN-09: matricula de un estudiante inexistente -> foreign_key_violation |
++------------------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:249: NOTICE:  OK   >> RN-04: DNI de 7 digitos -> check_violation  (rechazado, SQLSTATE 23514)
++--------------------------------------------+
+|                check_error                 |
++--------------------------------------------+
+| RN-04: DNI de 7 digitos -> check_violation |
++--------------------------------------------+
+(1 row)
+
+psql:<stdin>:254: NOTICE:  OK   >> RN-04: DNI repetido -> unique_violation  (rechazado, SQLSTATE 23505)
++-----------------------------------------+
+|               check_error               |
++-----------------------------------------+
+| RN-04: DNI repetido -> unique_violation |
++-----------------------------------------+
+(1 row)
+
+psql:<stdin>:259: NOTICE:  OK   >> RN-03: codigo de estudiante repetido -> unique_violation  (rechazado, SQLSTATE 23505)
++----------------------------------------------------------+
+|                       check_error                        |
++----------------------------------------------------------+
+| RN-03: codigo de estudiante repetido -> unique_violation |
++----------------------------------------------------------+
+(1 row)
+
++-------------------------------------------------------+
+|                      check_error                      |
++-------------------------------------------------------+
+| RN-05: correo con formato invalido -> check_violation |
++-------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:265: NOTICE:  OK   >> RN-05: correo con formato invalido -> check_violation  (rechazado, SQLSTATE 23514)
+psql:<stdin>:270: NOTICE:  OK   >> RN-02: creditos 0 (fuera de 1..10) -> check_violation  (rechazado, SQLSTATE 23514)
++-------------------------------------------------------+
+|                      check_error                      |
++-------------------------------------------------------+
+| RN-02: creditos 0 (fuera de 1..10) -> check_violation |
++-------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:275: NOTICE:  OK   >> RN-02: creditos 11 (fuera de 1..10) -> check_violation  (rechazado, SQLSTATE 23514)
++--------------------------------------------------------+
+|                      check_error                       |
++--------------------------------------------------------+
+| RN-02: creditos 11 (fuera de 1..10) -> check_violation |
++--------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:280: NOTICE:  OK   >> RN-02: horas 0 -> check_violation  (rechazado, SQLSTATE 23514)
++-----------------------------------+
+|            check_error            |
++-----------------------------------+
+| RN-02: horas 0 -> check_violation |
++-----------------------------------+
+(1 row)
+
+psql:<stdin>:286: NOTICE:  OK   >> RN-01: nombre de usuario de 2 caracteres -> check_violation  (rechazado, SQLSTATE 23514)
++-------------------------------------------------------------+
+|                         check_error                         |
++-------------------------------------------------------------+
+| RN-01: nombre de usuario de 2 caracteres -> check_violation |
++-------------------------------------------------------------+
+(1 row)
+
++-----------------------------------------------------------+
+|                        check_error                        |
++-----------------------------------------------------------+
+| RN-01: rol distinto de admin/asistente -> check_violation |
++-----------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:292: NOTICE:  OK   >> RN-01: rol distinto de admin/asistente -> check_violation  (rechazado, SQLSTATE 23514)
+psql:<stdin>:298: NOTICE:  OK   >> RN-01: nombre de usuario repetido -> unique_violation  (rechazado, SQLSTATE 23505)
++-------------------------------------------------------+
+|                      check_error                      |
++-------------------------------------------------------+
+| RN-01: nombre de usuario repetido -> unique_violation |
++-------------------------------------------------------+
+(1 row)
+
+BEGIN
+SELECT 1
+DELETE 1
++---------------------------------------------------------------+
+|                             check                             |
++---------------------------------------------------------------+
+| RN-10: eliminar el curso 5 borro sus 3 matriculas por cascada |
++---------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:312: NOTICE:  OK   >> RN-10: eliminar el curso 5 borro sus 3 matriculas por cascada
+DELETE 1
+psql:<stdin>:318: NOTICE:  OK   >> RN-10: eliminar el estudiante 2 borro sus 2 matriculas por cascada
++--------------------------------------------------------------------+
+|                               check                                |
++--------------------------------------------------------------------+
+| RN-10: eliminar el estudiante 2 borro sus 2 matriculas por cascada |
++--------------------------------------------------------------------+
+(1 row)
+
+SELECT 1
++------------------------------------------------------------------------------------------------+
+|                                             check                                              |
++------------------------------------------------------------------------------------------------+
+| 03-seed.sql: la secuencia quedo por encima del max(id) del seed (el INSERT no choca con la PK) |
++------------------------------------------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:329: NOTICE:  OK   >> 03-seed.sql: la secuencia quedo por encima del max(id) del seed (el INSERT no choca con la PK)
+SELECT 1
++----------------------------------------------------------------------------------------------------------------------------------+
+|                                                              check                                                               |
++----------------------------------------------------------------------------------------------------------------------------------+
+| 03-seed.sql: la secuencia de cursos continua por encima de 7 (ids con huecos: los INSERT rechazados tambien consumen el nextval) |
++----------------------------------------------------------------------------------------------------------------------------------+
+(1 row)
+
+psql:<stdin>:337: NOTICE:  OK   >> 03-seed.sql: la secuencia de cursos continua por encima de 7 (ids con huecos: los INSERT rechazados tambien consumen el nextval)
+ROLLBACK
+psql:<stdin>:344: NOTICE:  OK   >> ROLLBACK: las 24 matriculas siguen ahi
++----------------------------------------+
+|                 check                  |
++----------------------------------------+
+| ROLLBACK: las 24 matriculas siguen ahi |
++----------------------------------------+
+(1 row)
+
++-----------------------------------+
+|               check               |
++-----------------------------------+
+| ROLLBACK: los 7 cursos siguen ahi |
++-----------------------------------+
+(1 row)
+
+psql:<stdin>:345: NOTICE:  OK   >> ROLLBACK: los 7 cursos siguen ahi
++-----------------------------------------+
+|                  check                  |
++-----------------------------------------+
+| ROLLBACK: los 12 estudiantes siguen ahi |
++-----------------------------------------+
+(1 row)
+
+psql:<stdin>:346: NOTICE:  OK   >> ROLLBACK: los 12 estudiantes siguen ahi
++-------------------------------------------+
+| comprobaciones_ok_fuera_de_la_transaccion |
++-------------------------------------------+
+|                                        50 |
++-------------------------------------------+
+(1 row)
+

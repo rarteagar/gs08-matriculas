@@ -1,0 +1,28 @@
+== 1. PostgreSQL desechable (postgres:16.15-alpine3.24) con db/init montado como initdb.d ==
+== 2. Esperando que el entrypoint ejecute 01-schema, 02-view y 03-seed ==
+== 3. verificar_modelo.sql (comprobaciones + pruebas negativas de las reglas) ==
+== 4. verificar_hash_admin.sql (el hash bcrypt del seed) ==
+== 5. diagnostico_hash_legacy.sql (el quirk de pgcrypto con el prefijo $2y$) ==
+== 6. prueba_busqueda_rendimiento.sql (100.000 filas: LIKE vs indice trigram) ==
+== 7. verificar_notas.sql (04-notas.sql: tabla, vista, RN-14/15/16, boleta) ==
+
+verificar_modelo.sql      exit=0   comprobaciones OK=54   fallas=0
+verificar_hash_admin.sql  exit=0   comprobaciones OK=2
+verificar_notas.sql       exit=0   comprobaciones OK=32
+NOTICE:  OK   >> el hash del seed corresponde a Admin123! (bcrypt valido, coste 10)
+NOTICE:  OK   >> el hash del seed rechaza una clave equivocada
+NOTICE:  NOTA >> pgcrypto necesita normalizar el prefijo a $2a$ (quirk de pgcrypto, no del hash); la libreria del API lo verifica con el $2y$ tal cual
+
+mediciones de busqueda (docs/analisis/evidencia/busqueda-rendimiento.txt):
+->  Seq Scan on estudiantes  (cost=0.00..3225.24 rows=40 width=0) (actual time=0.018..104.382 rows=2 loops=1)
+Execution Time: 104.421 ms
+->  Bitmap Index Scan on idx_estudiantes_busqueda_trgm  (cost=0.00..39.02 rows=32 width=0) (actual time=0.029..0.030 rows=2 loops=1)
+Execution Time: 0.113 ms
+ERROR:  functions in index expression must be marked IMMUTABLE
+|                                        50 |
++-------------------------------------------+
+(1 row)
+
+
+Evidencia: /d/dev/equipo/gs08-matriculas/docs/analisis/evidencia
+Apagar la base de verificacion: docker rm -f gs08-analista-verif

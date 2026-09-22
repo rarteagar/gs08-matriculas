@@ -1,0 +1,135 @@
+The files belonging to this database system will be owned by user "postgres".
+This user must also own the server process.
+
+The database cluster will be initialized with locale "en_US.utf8".
+The default database encoding has accordingly been set to "UTF8".
+The default text search configuration will be set to "english".
+
+Data page checksums are disabled.
+
+fixing permissions on existing directory /var/lib/postgresql/data ... ok
+creating subdirectories ... ok
+selecting dynamic shared memory implementation ... posix
+selecting default max_connections ... 100
+selecting default shared_buffers ... 128MB
+selecting default time zone ... UTC
+creating configuration files ... ok
+running bootstrap script ... ok
+sh: locale: not found
+2026-09-22 03:56:13.191 UTC [41] WARNING:  no usable system locales were found
+performing post-bootstrap initialization ... ok
+syncing data to disk ... ok
+
+
+Success. You can now start the database server using:
+
+    pg_ctl -D /var/lib/postgresql/data -l logfile start
+
+initdb: warning: enabling "trust" authentication for local connections
+initdb: hint: You can change this by editing pg_hba.conf or using the option -A, or --auth-local and --auth-host, the next time you run initdb.
+waiting for server to start....2026-09-22 03:56:14.139 UTC [53] LOG:  starting PostgreSQL 16.15 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit
+2026-09-22 03:56:14.141 UTC [53] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-09-22 03:56:14.148 UTC [56] LOG:  database system was shut down at 2026-09-22 03:56:13 UTC
+2026-09-22 03:56:14.153 UTC [53] LOG:  database system is ready to accept connections
+ done
+server started
+CREATE DATABASE
+
+
+/usr/local/bin/docker-entrypoint.sh: running /docker-entrypoint-initdb.d/01-schema.sql
+SET
+CREATE EXTENSION
+CREATE TABLE
+COMMENT
+COMMENT
+COMMENT
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+COMMENT
+COMMENT
+CREATE TABLE
+COMMENT
+COMMENT
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+COMMENT
+COMMENT
+COMMENT
+
+
+/usr/local/bin/docker-entrypoint.sh: running /docker-entrypoint-initdb.d/02-view.sql
+CREATE VIEW
+COMMENT
+
+
+/usr/local/bin/docker-entrypoint.sh: running /docker-entrypoint-initdb.d/03-seed.sql
+INSERT 0 1
+INSERT 0 12
+INSERT 0 7
+INSERT 0 24
+ setval 
+--------
+      1
+(1 row)
+
+ setval 
+--------
+     12
+(1 row)
+
+ setval 
+--------
+      7
+(1 row)
+
+ setval 
+--------
+     24
+(1 row)
+
+ANALYZE
+ANALYZE
+ANALYZE
+ANALYZE
+
+
+/usr/local/bin/docker-entrypoint.sh: running /docker-entrypoint-initdb.d/04-notas.sql
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+CREATE FUNCTION
+psql:/docker-entrypoint-initdb.d/04-notas.sql:69: NOTICE:  trigger "tr_notas_matricula_activa" for relation "notas" does not exist, skipping
+DROP TRIGGER
+CREATE TRIGGER
+CREATE VIEW
+COMMENT
+
+
+/usr/local/bin/docker-entrypoint.sh: ignoring /docker-entrypoint-initdb.d/README.md
+
+waiting for server to shut down...2026-09-22 03:56:14.477 UTC [53] LOG:  received fast shutdown request
+.2026-09-22 03:56:14.478 UTC [53] LOG:  aborting any active transactions
+2026-09-22 03:56:14.480 UTC [53] LOG:  background worker "logical replication launcher" (PID 59) exited with exit code 1
+2026-09-22 03:56:14.480 UTC [54] LOG:  shutting down
+2026-09-22 03:56:14.482 UTC [54] LOG:  checkpoint starting: shutdown immediate
+2026-09-22 03:56:14.659 UTC [54] LOG:  checkpoint complete: wrote 992 buffers (6.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.023 s, sync=0.148 s, total=0.179 s; sync files=335, longest=0.002 s, average=0.001 s; distance=4555 kB, estimate=4555 kB; lsn=0/1969EB0, redo lsn=0/1969EB0
+2026-09-22 03:56:14.668 UTC [53] LOG:  database system is shut down
+ done
+server stopped
+
+PostgreSQL init process complete; ready for start up.
+
+2026-09-22 03:56:14.700 UTC [1] LOG:  starting PostgreSQL 16.15 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit
+2026-09-22 03:56:14.700 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+2026-09-22 03:56:14.700 UTC [1] LOG:  listening on IPv6 address "::", port 5432
+2026-09-22 03:56:14.704 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-09-22 03:56:14.709 UTC [77] LOG:  database system was shut down at 2026-09-22 03:56:14 UTC
+2026-09-22 03:56:14.714 UTC [1] LOG:  database system is ready to accept connections
