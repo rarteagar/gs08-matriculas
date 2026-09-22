@@ -1,0 +1,176 @@
+-- ============================================================
+-- SISTEMA ADMINISTRATIVO WEB - INSTITUTO PRIVADO HORIZONTE
+-- Lenguaje de Programación Web III - Trabajo Colaborativo
+-- Motor: MySQL 8.x  |  Juego de caracteres: utf8mb4
+-- ============================================================
+
+-- Importante: garantiza lectura del script como UTF-8
+-- (evita problemas de acentos al importar en Windows)
+SET NAMES utf8mb4;
+
+DROP DATABASE IF EXISTS sistema_administrativo;
+CREATE DATABASE sistema_administrativo
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+
+USE sistema_administrativo;
+
+-- ------------------------------------------------------------
+-- TABLA: usuarios (autenticación del sistema)
+-- ------------------------------------------------------------
+CREATE TABLE usuarios (
+    id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    nombre_usuario  VARCHAR(50)  NOT NULL UNIQUE,
+    email           VARCHAR(100) NOT NULL UNIQUE,
+    password_hash   VARCHAR(255) NOT NULL,
+    nombre_completo VARCHAR(100) NOT NULL,
+    rol             VARCHAR(20)  NOT NULL DEFAULT 'admin'
+                    COMMENT 'admin | asistente',
+    estado          TINYINT(1)   NOT NULL DEFAULT 1
+                    COMMENT '1=activo, 0=inactivo',
+    creado_en       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- ------------------------------------------------------------
+-- TABLA: estudiantes
+-- ------------------------------------------------------------
+CREATE TABLE estudiantes (
+    id               INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    codigo           VARCHAR(20)  NOT NULL UNIQUE
+                     COMMENT 'Código de estudiante',
+    dni              CHAR(8)      NOT NULL UNIQUE,
+    nombres          VARCHAR(80)  NOT NULL,
+    apellidos        VARCHAR(80)  NOT NULL,
+    email            VARCHAR(100) NULL,
+    telefono         VARCHAR(20)  NULL,
+    fecha_nacimiento DATE         NULL,
+    direccion        VARCHAR(150) NULL,
+    estado           TINYINT(1)   NOT NULL DEFAULT 1
+                     COMMENT '1=activo, 0=inactivo',
+    creado_en        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_estudiantes_apellidos (apellidos)
+) ENGINE=InnoDB;
+
+-- ------------------------------------------------------------
+-- TABLA: cursos
+-- ------------------------------------------------------------
+CREATE TABLE cursos (
+    id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    codigo     VARCHAR(20)   NOT NULL UNIQUE,
+    nombre     VARCHAR(100)  NOT NULL,
+    descripcion TEXT         NULL,
+    creditos   TINYINT UNSIGNED NOT NULL DEFAULT 3,
+    horas      SMALLINT UNSIGNED NOT NULL DEFAULT 48,
+    estado     TINYINT(1)    NOT NULL DEFAULT 1
+               COMMENT '1=activo, 0=inactivo',
+    creado_en  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- ------------------------------------------------------------
+-- TABLA: matriculas (relación N:M entre estudiantes y cursos)
+-- ------------------------------------------------------------
+CREATE TABLE matriculas (
+    id             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    estudiante_id  INT UNSIGNED NOT NULL,
+    curso_id       INT UNSIGNED NOT NULL,
+    periodo        VARCHAR(10)  NOT NULL
+                   COMMENT 'Ej: 2026-02',
+    fecha_matricula DATE        NOT NULL,
+    estado         VARCHAR(15)  NOT NULL DEFAULT 'activa'
+                   COMMENT 'activa | retirado',
+    creado_en      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_matricula_estudiante
+        FOREIGN KEY (estudiante_id) REFERENCES estudiantes (id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_matricula_curso
+        FOREIGN KEY (curso_id) REFERENCES cursos (id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    UNIQUE KEY uq_matricula (estudiante_id, curso_id, periodo),
+    INDEX idx_matriculas_periodo (periodo)
+) ENGINE=InnoDB;
+
+-- ------------------------------------------------------------
+-- VISTA: v_matriculas_detalle
+-- Muestra las matrículas con datos del estudiante y del curso
+-- mediante JOIN (requisito del trabajo: uso de JOIN y vista).
+-- ------------------------------------------------------------
+CREATE OR REPLACE VIEW v_matriculas_detalle AS
+SELECT
+    m.id                      AS matricula_id,
+    m.periodo                 AS periodo,
+    m.fecha_matricula         AS fecha_matricula,
+    m.estado                  AS estado_matricula,
+    e.id                      AS estudiante_id,
+    e.codigo                  AS codigo_estudiante,
+    e.dni                     AS dni,
+    CONCAT(e.apellidos, ', ', e.nombres) AS estudiante,
+    c.id                      AS curso_id,
+    c.codigo                  AS codigo_curso,
+    c.nombre                  AS curso,
+    c.creditos                AS creditos
+FROM matriculas m
+INNER JOIN estudiantes e ON e.id = m.estudiante_id
+INNER JOIN cursos c      ON c.id = m.curso_id;
+
+-- ============================================================
+-- DATOS INICIALES (SEED)
+-- ============================================================
+
+-- Usuario administrador: admin / Admin123!
+-- (generado con password_hash('Admin123!', PASSWORD_DEFAULT))
+INSERT INTO usuarios (nombre_usuario, email, password_hash, nombre_completo, rol) VALUES
+('admin', 'admin@horizonte.edu.pe',
+ '$2y$10$Tzgm/meEuR9o/nxq1ocKBu01ncP.pbnMay7a1aqWsuwXA4Q9Y9nzu',
+ 'Administrador del Sistema', 'admin');
+
+-- Estudiantes
+INSERT INTO estudiantes (codigo, dni, nombres, apellidos, email, telefono, fecha_nacimiento, direccion) VALUES
+('E20260001', '45123456', 'Carlos Alberto', 'Ramírez Torres',    'cramirez@correo.pe',     '987654321', '2005-03-14', 'Av. Los Laureles 245, Lima'),
+('E20260002', '46234567', 'María Fernanda', 'Quispe Huamán',    'mquispe@correo.pe',      '986543210', '2006-07-22', 'Jr. Puno 118, Lima'),
+('E20260003', '47345678', 'Luis Enrique',   'Gutiérrez Salas',  'lgutierrez@correo.pe',   '985432109', '2004-11-30', 'Calle Los Olivos 87, Callao'),
+('E20260004', '48456789', 'Ana Lucía',      'Vargas Mendoza',   'avargas@correo.pe',      '984321098', '2005-01-09', 'Av. Grau 456, Lima'),
+('E20260005', '49567890', 'Diego Antonio',  'Flores Chávez',    'dflores@correo.pe',      '983210987', '2006-05-18', 'Jr. Amazonas 332, Lima'),
+('E20260006', '50678901', 'Valeria Sofía',  'Paredes Rojas',    'vparedes@correo.pe',     '982109876', '2004-09-25', 'Av. Arequipa 1780, Lima'),
+('E20260007', '51789012', 'Jorge Luis',     'Castillo Neyra',   'jcastillo@correo.pe',    '981098765', '2005-12-03', 'Calle Los Pinos 51, Miraflores'),
+('E20260008', '52890123', 'Camila Andrea',  'Ríos Delgado',     'crios@correo.pe',        '980987654', '2006-02-27', 'Jr. Chiclayo 220, Lima'),
+('E20260009', '53901234', 'Miguel Ángel',   'Herrera Palacios', 'mherrera@correo.pe',     '979876543', '2004-06-11', 'Av. Universitaria 3120, Lima'),
+('E20260010', '54012345', 'Nicole Alessandra','Torres Vega',    'ntorres@correo.pe',      '978765432', '2005-08-19', 'Calle El Sol 96, San Miguel'),
+('E20260011', '55123456', 'Renato Gabriel', 'Salazar Meza',     'rsalazar@correo.pe',     '977654321', '2006-04-07', 'Jr. Cusco 154, Lima'),
+('E20260012', '56234567', 'Fiorella Milagros','Cárdenas Ruiz',  'fcardenas@correo.pe',    '976543210', '2005-10-15', 'Av. La Marina 2890, Lima');
+
+-- Cursos
+INSERT INTO cursos (codigo, nombre, descripcion, creditos, horas) VALUES
+('C101', 'Matemática Básica',       'Fundamentos de aritmética, álgebra y geometría aplicada.', 4, 64),
+('C102', 'Comunicación Efectiva',   'Redacción académica, expresión oral y comprensión lectora.', 3, 48),
+('C201', 'Programación Web III',    'Desarrollo de aplicaciones web con PHP, MySQL y Bootstrap.', 4, 64),
+('C202', 'Base de Datos II',        'Diseño y administración de bases de datos relacionales.', 3, 48),
+('C203', 'Inglés Técnico',          'Inglés orientado al ámbito profesional y técnico.', 2, 32),
+('C204', 'Estadística Aplicada',    'Estadística descriptiva e inferencial para la toma de decisiones.', 3, 48),
+('C205', 'Fundamentos de Administración', 'Principios de gestión, organización y liderazgo.', 3, 48);
+
+-- Matrículas (periodo 2026-02)
+INSERT INTO matriculas (estudiante_id, curso_id, periodo, fecha_matricula, estado) VALUES
+(1,  1, '2026-02', '2026-08-03', 'activa'),
+(1,  2, '2026-02', '2026-08-03', 'activa'),
+(2,  1, '2026-02', '2026-08-04', 'activa'),
+(2,  3, '2026-02', '2026-08-04', 'activa'),
+(3,  3, '2026-02', '2026-08-05', 'activa'),
+(3,  4, '2026-02', '2026-08-05', 'activa'),
+(4,  2, '2026-02', '2026-08-06', 'activa'),
+(4,  5, '2026-02', '2026-08-06', 'activa'),
+(5,  1, '2026-02', '2026-08-07', 'activa'),
+(5,  6, '2026-02', '2026-08-07', 'activa'),
+(6,  3, '2026-02', '2026-08-07', 'activa'),
+(6,  7, '2026-02', '2026-08-07', 'activa'),
+(7,  4, '2026-02', '2026-08-10', 'retirado'),
+(7,  5, '2026-02', '2026-08-10', 'activa'),
+(8,  2, '2026-02', '2026-08-11', 'activa'),
+(8,  6, '2026-02', '2026-08-11', 'activa'),
+(9,  1, '2026-02', '2026-08-12', 'activa'),
+(9,  7, '2026-02', '2026-08-12', 'activa'),
+(10, 3, '2026-02', '2026-08-13', 'activa'),
+(10, 5, '2026-02', '2026-08-13', 'activa'),
+(11, 2, '2026-02', '2026-08-14', 'activa'),
+(11, 4, '2026-02', '2026-08-14', 'activa'),
+(12, 1, '2026-02', '2026-08-17', 'activa'),
+(12, 6, '2026-02', '2026-08-17', 'activa');
