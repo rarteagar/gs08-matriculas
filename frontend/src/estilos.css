@@ -1,0 +1,56 @@
+@import 'tailwindcss';
+
+/* Clases de la app. Cada una lleva sus utilidades completas: en Tailwind 4
+   @apply solo acepta utilidades, no otras clases propias. */
+body {
+  @apply bg-slate-100 text-slate-800 antialiased;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+.tarjeta {
+  @apply rounded-xl border border-slate-200 bg-white p-5 shadow-sm;
+}
+
+.boton-primario {
+  @apply rounded-lg bg-sky-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+.boton-secundario {
+  @apply rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+.boton-peligro {
+  @apply rounded-lg border border-rose-300 bg-white px-3 py-1.5 text-xs font-medium text-rose-700 transition hover:bg-rose-50;
+}
+
+.campo {
+  @apply w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-100;
+}
+
+.etiqueta {
+  @apply mb-1 block text-xs font-semibold tracking-wide text-slate-600 uppercase;
+}
+
+.tabla {
+  @apply w-full border-collapse text-sm;
+}
+
+.tabla th {
+  @apply border-b border-slate-200 px-3 py-2 text-left text-xs font-semibold tracking-wide text-slate-500 uppercase;
+}
+
+.tabla td {
+  @apply border-b border-slate-100 px-3 py-2 align-middle;
+}
+
+.insignia-activa {
+  @apply inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800;
+}
+
+.insignia-retirado {
+  @apply inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800;
+}
+
+.insignia-inactivo {
+  @apply inline-flex items-center rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700;
+}
