@@ -254,14 +254,14 @@
       "id": 8,
       "type": "table",
       "title": "8. Top 5 endpoints por volumen de peticiones",
-      "description": "Que recursos se usan mas (estudiantes, cursos, matriculas, auth). Ayuda a saber donde optimizar indices o paginar.",
+      "description": "Que recursos se usan mas (estudiantes, cursos, matriculas, auth). Ayuda a saber donde optimizar indices o paginar. Se excluye el ruido del scrape (/metrics y /health) para que se vea el trafico de la aplicacion.",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "h": 9, "w": 12, "x": 12, "y": 15 },
       "targets": [
         {
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "topk(5, sum by (handler, method) (rate(http_requests_total{job=\"gs08-api\", instancia=~\"$instancia\"}[$__rate_interval])))",
+          "expr": "topk(5, sum by (handler, method) (rate(http_requests_total{job=\"gs08-api\", handler!~\"/metrics|/health\", instancia=~\"$instancia\"}[$__rate_interval])))",
           "format": "table",
           "instant": true
         }
@@ -279,14 +279,14 @@
       "id": 9,
       "type": "table",
       "title": "9. Latencia p95 por endpoint",
-      "description": "Endpoint mas lento primero: es la lista de trabajo para optimizar consultas SQL y vistas.",
+      "description": "Endpoint mas lento primero (sin contar el scrape de /metrics y /health): es la lista de trabajo para optimizar consultas SQL y vistas.",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "h": 9, "w": 24, "x": 0, "y": 24 },
       "targets": [
         {
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "histogram_quantile(0.95, sum by (handler, le) (rate(http_request_duration_seconds_bucket{job=\"gs08-api\", instancia=~\"$instancia\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (handler, le) (rate(http_request_duration_seconds_bucket{job=\"gs08-api\", handler!~\"/metrics|/health\", instancia=~\"$instancia\"}[$__rate_interval])))",
           "format": "table",
           "instant": true
         }
