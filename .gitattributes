@@ -1,0 +1,17 @@
+# Normalizacion de finales de linea: el repo guarda LF (Linux/CI) y Git
+# convierte a CRLF solo en la copia de trabajo de Windows.
+* text=auto eol=lf
+
+# Binarios: nunca tocar
+*.png binary
+*.jpg binary
+*.woff binary
+*.woff2 binary
+
+# Estos no deben llevar CRLF nunca (se ejecutan en Linux: CI, contenedores)
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.dockerignore text eol=lf
+*.conf.template text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
