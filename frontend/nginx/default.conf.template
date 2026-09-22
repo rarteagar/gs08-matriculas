@@ -27,7 +27,9 @@ server {
     gzip_min_length 1024;
     gzip_types text/plain text/css application/javascript application/json image/svg+xml;
 
-    # ---- Cabeceras de seguridad ----
+    # ---- Cabeceras de seguridad (nivel server: las hereda todo menos las
+    #      locations que declaran sus propios add_header, por eso se repiten
+    #      en /api/ mas abajo -> BUG-06 / TC-02) ----
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
@@ -38,6 +40,15 @@ server {
         default_type text/plain;
         return 200 "ok\n";
     }
+
+    # ---- Rutas de monitoreo que NO existen por el proxy (D-17 / BUG-05) ----
+    # nginx responde 404 a proposito: asi ningun chequeo de codigo HTTP puede
+    # dar por bueno el index.html del SPA creyendo que son metricas reales.
+    #   /metrics se lee DIRECTO del API (http://localhost:8000/metrics), porque
+    #   a traves del balanceador se mezclarian las metricas de las 2 instancias.
+    #   La salud del API por el proxy es /api/v1/health (-> 200 del API).
+    location = /health  { return 404; }
+    location = /metrics { return 404; }
 
     # ---- API: proxy inverso (x-upstream-addr muestra que instancia respondio) ----
     location /api/ {
@@ -54,6 +65,10 @@ server {
         # Solo 'error timeout' (no se reintenta en 5xx para no repetir escrituras).
         proxy_next_upstream error timeout;
         proxy_next_upstream_tries 2;
+        # TC-02: repetidas a proposito (el add_header de una location anula los del server)
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
         add_header X-Upstream-Addr $upstream_addr always;
     }
 
@@ -61,6 +76,9 @@ server {
     location /assets/ {
         expires 30d;
         add_header Cache-Control "public, immutable";
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
         try_files $uri =404;
     }
 

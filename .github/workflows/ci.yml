@@ -40,6 +40,30 @@ jobs:
       - name: Validar docker-compose (sintaxis y sustitucion de variables)
         run: docker compose config -q && docker compose config --services
 
+      - name: Imagen del API (la necesita el control de D-14)
+        run: docker compose build api
+
+      # TC-08: control automatico de D-14 (una sola fuente de verdad del esquema).
+      # El script sale 0 si db/init/ y Alembic coinciden, 1 si difieren y 2 si la
+      # foto del catalogo fallo: cualquiera de los dos ultimos rompe el job.
+      - name: Control de D-14 (db/init/ vs revision inicial de Alembic)
+        run: |
+          if bash db/verificacion/comparar_con_alembic.sh; then
+            echo "OK: db/init/ y la revision inicial de Alembic dejan el mismo esquema (D-14)"
+          else
+            echo "::error::D-14 rota: db/init/ y Alembic difieren, o la foto del catalogo fallo (exit != 0)"
+            exit 1
+          fi
+
+      - name: Catalogo de D-14 como evidencia (se guarda siempre)
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: d14-catalogo-esquema
+          path: docs/analisis/evidencia/
+          retention-days: 7
+          if-no-files-found: ignore
+
       - name: Lint Dockerfile del API (hadolint)
         uses: hadolint/hadolint-action@v3.5.0
         with:
