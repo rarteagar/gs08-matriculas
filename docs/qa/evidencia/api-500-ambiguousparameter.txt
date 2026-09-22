@@ -1,0 +1,69 @@
+== GS08 · Evidencia · DOS errores 500 en la API real (T1.1–T1.4 de @dev)
+== Encontrados por @qa en la PRIMERA corrida del plan de pruebas contra la API real
+== (uvicorn sobre backend/app, 21/09/2026, base creada desde db/init, 12/7/24)
+==
+== Los dos son el MISMO defecto en dos archivos: un parámetro que va como NULL y
+== PostgreSQL no puede tipar -> psycopg.errors.AmbiguousParameter -> 500.
+== Ninguno de los 39 criterios cubría este camino "cuidado": los dos primeros fallos
+== llegan recién cuando el INSERT pasa la validación de Pydantic.
+
+--- 1. POST /api/v1/matriculas -> 500 (rompe C-16, C-17 y todo el recorrido E2E) ---
+
+$ curl -X POST http://localhost:8010/api/v1/matriculas -H 'Content-Type: application/json' \
+       -H "Authorization: Bearer <token>" \
+       -d '{"estudiante_id":1,"curso_id":1,"periodo":"2026-02","fecha_matricula":"2026-08-01"}'
+HTTP 500
+{"detail":"Error interno del servidor (revisar el log del API)."}
+
+--- log del API (extracto) ---
+sqlalchemy.exc.ProgrammingError: (psycopg.errors.AmbiguousParameter) could not determine data type of parameter $4
+LINE 1: ...e_id = $1 AND curso_id = $2 AND periodo = $3 AND ($4 IS NULL...
+                                                             ^
+[SQL: SELECT id FROM matriculas WHERE estudiante_id = %(e)s AND curso_id = %(c)s AND periodo = %(p)s
+      AND (%(propia)s IS NULL OR id <> %(propia)s)]
+[parameters: {'e': 1, 'c': 1, 'p': '2026-02', 'propia': None}]
+  File ".../app/routers/matriculas.py", line 143, in crear
+    _verificar_duplicado(db, datos.estudiante_id, datos.curso_id, datos.periodo)
+  File ".../app/routers/matriculas.py", line 129, in _verificar_duplicado
+    otra = db.execute(...)
+
+--- 2. POST /api/v1/usuarios -> 500 (rompe C-22 y C-23) ---
+
+$ curl -X POST http://localhost:8010/api/v1/usuarios -H 'Content-Type: application/json' \
+       -H "Authorization: Bearer <token>" \
+       -d '{"nombre_usuario":"qa_asistente","email":"qa_asistente@horizonte.edu.pe","password":"QaPrueba123!","nombre_completo":"QA Asistente","rol":"asistente"}'
+HTTP 500
+{"detail":"Error interno del servidor (revisar el log del API)."}
+
+--- log del API (extracto) ---
+sqlalchemy.exc.ProgrammingError: (psycopg.errors.AmbiguousParameter) could not determine data type of parameter $3
+LINE 1: ...re_usuario = $1 OR lower(email) = lower($2)) AND ($3 IS NULL...
+                                                             ^
+[SQL: SELECT id, nombre_usuario, email FROM usuarios WHERE (nombre_usuario = %(nombre_usuario)s
+      OR lower(email) = lower(%(email)s)) AND (%(propio)s IS NULL OR id <> %(propio)s)]
+[parameters: {'nombre_usuario': 'qa_asistente', 'email': 'qa_asistente@horizonte.edu.pe', 'propio': None}]
+
+--- 3. Causa y arreglo sugerido (es el mismo patrón en los dos) ---
+
+El patrón `AND (:propio IS NULL OR id <> :propio)` con `propio=None` deja a PostgreSQL sin
+poder inferir el tipo del parámetro ("parameter $4"): el `IS NULL` no le da tipo y el `<>`
+tampoco. Falla solo en el camino de **INSERT** (`propio=None`); en el `PUT` el valor llega
+y la consulta funciona. Dos arreglos posibles, cualquiera de los dos sirve:
+
+  a) castear el parámetro:  AND (CAST(:propio AS integer) IS NULL OR id <> CAST(:propio AS integer))
+  b) armar la condición en Python:  sql = "..." + ("" if propio is None else " AND id <> :propio")
+
+--- 4. Lo que NO es bug (verificado a mano, para no mandar a nadie a buscar fantasmas) ---
+
+* `GET /api/v1/estudiantes?q=Huamán` con la tilde **percent-encoded** -> 200 y `total=1`,
+  igual que `huaman` y `HUAMAN`: el buscador con `unaccent` funciona (C-08 OK).
+  Un byte UTF-8 crudo en la URL da 400 "Invalid HTTP request received": eso era un defecto
+  de mi script de pruebas, ya corregido (`%C3%A1`).
+* Notas y boleta, probados a mano contra la API real (no dependen del 500 de matrículas):
+    POST /api/v1/matriculas/1/notas {practica,1,14}      -> 201
+    repetir la misma                                      -> 409
+    {final,2,21}                                          -> 422
+    nota sobre la matrícula 13 (retirada)                 -> 409 "RN-14"
+    boleta de estudiante 1                                -> C101 nota 16.00 (nota_texto), promedio 13.43
+    boleta de estudiante 3 (cursos sin notas)              -> nota null, promedio null, creditos_con_notas 0
+  Notas borradas después con psql en la base de pruebas: quedó en 0 notas / 12 / 7 / 24.

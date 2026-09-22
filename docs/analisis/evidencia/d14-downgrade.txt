@@ -1,0 +1,19 @@
+GS08 - D-14: se probo tambien el downgrade de la revision inicial (@analista, 21/09/2026)
+=========================================================================================
+
+1) Comando (sobre la base que acababa de migrar comparar_con_alembic.sh):
+
+$ docker run --rm --network gs08-d14-net -v "D:/dev/equipo/gs08-matriculas/backend:/app" \
+    -e DATABASE_URL="postgresql+psycopg://gs08:***@gs08-d14-alembic:5432/gs08_matriculas" \
+    --entrypoint alembic gs08-api:local downgrade base
+
+2) Salida (estado de la base despues del downgrade):
+
+tablas | vistas | unaccent | triggers
+-------+--------+----------+----------
+     1 |      0 |        0 |        0
+(1 row)
+
+Lectura: la unica tabla que queda es alembic_version, la de control de Alembic (correcto).
+Las 5 tablas, las 2 vistas, el trigger y la extension unaccent desaparecieron: el downgrade
+es real, no decorativo.

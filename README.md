@@ -33,9 +33,9 @@ todavía no existe: es T1.1/T2.4.
 | Sprint | Alcance | Estado hoy |
 |---|---|---|
 | **Sprint 0** | Alcance, modelo de datos, contenedores/CI/k8s, plan de pruebas | ✅ **Cerrado.** Todo con evidencia pegada (`docs/backlog-sprints.md` §Sprint 0) |
-| **Sprint 1** | API núcleo (`/api/v1/auth/login`, estudiantes, cursos, dashboard) + cluster local | ⬜ **No empezado.** `backend/` solo tiene `Dockerfile`; `POST /api/v1/auth/login` responde **404** (medido por @qa) |
-| **Sprint 2** | Matrículas, usuarios y SPA Vue | ⬜ Pendiente |
-| **Sprint 3** | Notas y boleta | ⬜ Pendiente |
+| **Sprint 1** | API núcleo (`/api/v1/auth/login`, estudiantes, cursos, dashboard) + cluster local | 🟡 **En curso.** El **API real ya existe** (28 endpoints publicados, `version 0.1.0`) y @qa lo probó: **22 de los 39 criterios con corrida verde**; quedan **2 bugs abiertos de la API** (`POST /matriculas` y `POST /usuarios` → 500, BUG-08/09) y el cluster sin desplegar (A-02) |
+| **Sprint 2** | Matrículas, usuarios y SPA Vue | 🟡 Parcial sin declarar: los endpoints de matrículas y usuarios están escritos pero con los dos 500 abiertos; el **SPA no existe** (T2.4) y el compose sigue sirviendo el stub de humo (T2.6) |
+| **Sprint 3** | Notas y boleta | 🟡 Adelantado y **funcionando**: `db/init/04-notas.sql` aplicado, notas y boleta verificadas a mano por @qa (boleta del estudiante 1: C101 **16.00**, promedio ponderado **13.43**); falta correr el recorrido E2E completo, que hoy se corta en matrículas |
 | **Sprint 4** | Cierre, Kubernetes real y entregables | ⬜ Pendiente |
 
 **Lo que el Sprint 0 deja expresamente sin hacer, y por qué** (dicho sin adornos, `docs/backlog-sprints.md` línea 37):
@@ -45,9 +45,11 @@ todavía no existe: es T1.1/T2.4.
   pero eso **no** es un cluster. Instalar minikube es software nuevo en la máquina: espera el OK del dueño (A-02).
 - **El push al repositorio público no se hizo** (el repo no tiene remoto), así que los workflows de CI/CD están
   escritos y validados offline, pero no han corrido nunca en GitHub.
-- **La API y el SPA no existen.** El stack que hoy está arriba corriendo en la máquina de desarrollo es el
-  **arnés de humo** (`D:\dev\_tmp\gs08-smoke`, copia del compose + un stub mínimo de API y SPA), **que no es
-  parte de este repositorio**: se usó para validar la infraestructura antes de que exista el código.
+- **El SPA no existe** (`frontend/` solo tiene `Dockerfile` y la config de nginx): es **T2.4**. Consecuencia
+  directa: el stack del repo **todavía no se levanta completo** con `docker compose up -d --build`
+  (`build web` necesita `frontend/package.json`), y lo que hoy responde en `:8080` es el **arnés de humo**
+  (`D:\dev\_tmp\gs08-smoke`, con un stub de API **que no es parte de este repositorio**); retirarlo es **T2.6**.
+  El **API real** ya existe y corre contra una base limpia en otra instancia (`:8010`, la que usó @qa para probar).
 
 ---
 
@@ -172,7 +174,10 @@ completo de Kubernetes están en **`docs/devops/COMANDOS.md`**.
 | Login de demo del seed | `admin` / `Admin123!` (o `admin@horizonte.edu.pe`) | `docs/analisis/datos-seed.md` |
 
 **Son credenciales de desarrollo local.** Antes de cualquier entrega se cambian `POSTGRES_PASSWORD` y
-`SECRET_KEY` (`docs/devops/plan-contenedores-ci.md` §6). El puerto 4000 también queda expuesto solo en local.
+`SECRET_KEY` (`docs/devops/plan-contenedores-ci.md` §6). **Puertos publicados al host, todos solo en local:**
+`8080` (nginx/SPA), `8000` (API directa), `5432` (PostgreSQL), `9090` (Prometheus) y `3000` (Grafana), más el
+`55432`/`55433` de los contenedores de verificación. *(El backlog decía «4000»: verifiqué contra
+`docker-compose.yml` y ese puerto no existe; el del API es `8000`.)*
 
 **Decisión D-17 (por qué `/metrics` no va por el proxy):** leer `/metrics` a través del balanceador mezclaría
 las métricas de las dos instancias del API. Prometheus scrapea `api:8000` y `api-b:8000` por separado.
@@ -200,7 +205,9 @@ chequeo de código HTTP dé por bueno un `/metrics` que no trae métricas (BUG-0
 | `docs/devops/evidencia-sprint0.md` | evidencia real de infraestructura: comando → salida |
 | `docs/devops/COMANDOS.md` | runbook: levantar, logs, observabilidad, k8s, problemas frecuentes |
 | `docs/qa/plan-pruebas.md` | matriz de los 39 criterios, 27 comprobaciones del smoke, E2E de 10 pasos |
-| `docs/qa/reporte-bugs.md` | 7 hallazgos con pasos, esperado, obtenido, evidencia y estado |
+| `docs/informe/informe-gs08-matriculas-2026-09-21.docx` · `.pdf` | **informe del proyecto** (borrador, 10 páginas): carátula con los 3 integrantes y el docente, índice, resumen, alcance, arquitectura, modelo de datos, API, infraestructura, Kubernetes, calidad, seguridad/ética/sostenibilidad, firma grupal y anexo de comandos |
+| `docs/informe/exposicion-gs08-10-laminas-2026-09-21.pptx` · `.pdf` | **PPTX de sustentación**: 10 láminas exactas, una idea por lámina, con notas del expositor y el documento fuente en cada una (borrador) |
+| `docs/qa/reporte-bugs.md` | 9 hallazgos con pasos, esperado, obtenido, evidencia y estado |
 
 ---
 
@@ -234,10 +241,23 @@ OK    dashboard provisionado: HTTP 200 en http://localhost:3000/d/gs08-matricula
 9 comprobaciones OK, 0 fallas          (exit 0)
 ```
 
-**Modelo de datos** (no depende del API, ya está verificado):
+**Modelo de datos** (no depende del API; verificado por @documentador contra la base viva el 21/09/2026):
 
 ```bash
-bash db/verificacion/ejecutar_verificacion.sh    # 49 comprobaciones, exit 0
+$ docker exec -i gs08-analista-verif psql -q -U gs08 -d gs08_matriculas < db/verificacion/verificar_modelo.sql | grep -c 'NOTICE:  OK'
+54
+$ docker exec -i gs08-analista-verif psql -q -U gs08 -d gs08_matriculas < db/verificacion/verificar_notas.sql | grep -c 'NOTICE:  OK'
+32          # 0 fallas y 0 errores en las dos corridas
+```
+
+O todo junto, con una base desechable propia: `bash db/verificacion/ejecutar_verificacion.sh`
+(modelo + hash del admin + `04-notas.sql`).
+
+**API real** (existe y responde; el compose todavía sirve el stub hasta T2.6):
+
+```bash
+curl -s http://localhost:8010/api/v1/health          # {"status":"ok","motor":"PostgreSQL 16.15",...}
+bash scripts/smoke_api.sh --solo-contrato --e2e --url http://localhost:8010   # matriz por criterio
 ```
 
 Prueba de balanceo y de failover (debe alternar dos IPs internas, y responder **200** con una instancia apagada):
@@ -252,11 +272,13 @@ for i in $(seq 1 6); do curl -s -o /dev/null -D - http://localhost:8080/api/v1/h
 
 | Síntoma | Causa | Qué hacer |
 |---|---|---|
-| `docker compose build api` falla en `COPY requirements.txt` | El código del API es T1.1 y no existe todavía | Esperar T1.1. No es un bug del compose |
+| `docker compose up -d --build` no completa el stack | **El SPA no existe**: `frontend/` solo tiene `Dockerfile` y la config de nginx, así que `build web` falla por falta de `frontend/package.json`. El API sí construye (T1.1 está entregado) | Esperar **T2.4**. Mientras tanto, lo que responde en `:8080` es el arnés de humo (**T2.6**), y el API real se corre aparte contra una base limpia |
+| `POST /api/v1/matriculas` → **500** | `psycopg.errors.AmbiguousParameter` con `propio=None` en `_verificar_duplicado()` (**BUG-08**): falla la matrícula nueva **y** la duplicada | Arreglo de 2 líneas en `app/routers/matriculas.py:129` (`CAST(:propio AS integer)` o armar la condición en Python). @dev |
+| `POST /api/v1/usuarios` → **500** | El mismo patrón (**BUG-09**), en `app/routers/usuarios.py` | Mismo arreglo. Bloquea `C-22` y `C-23` |
 | `verificar_stack.py` salía con FALLA en un entorno recién levantado | La serie `status=~"5.."` no existe y Prometheus devuelve vacío, no 0 (BUG-01) | Decisión D-19: serie ausente = **ADVERTENCIA**, no falla. Lo aplica @devops en TC-01 |
 | `/health` y `/metrics` por el proxy devolvían el `index.html` con **200** | nginx solo proxea `/api/`; el resto cae en el `try_files` del SPA (BUG-05) | D-17: `/metrics` directo en `:8000` y nginx **404** en `/health` y `/metrics`. TC-03 |
 | La respuesta de `/api/` no traía las cabeceras de seguridad | En nginx, una `location` con su propio `add_header` **no hereda** los del `server` (BUG-06) | TC-02: repetir los `add_header` dentro de la `location /api/` |
-| El buscador devuelve **0 filas** con tilde (`huaman`) | `ILIKE` ignora mayúsculas pero **no** tildes; falta `CREATE EXTENSION unaccent` (BUG-07) | Debe ir en `db/init/` **y** en la migración inicial de Alembic (D-14). Asignado a @dev + @analista |
+| El buscador devolvía **0 filas** con tilde (`huaman`) | `ILIKE` ignora mayúsculas pero **no** tildes; faltaba `CREATE EXTENSION unaccent` (BUG-07) | **Mitad hecha**: ya está en `db/init/01-schema.sql` (y el API real responde `q=huaman` → 1). Falta la revisión inicial de Alembic (D-14) |
 | Los `id` de las tablas tienen huecos | `nextval` no se revierte con `ROLLBACK` y un INSERT rechazado consume el id | **No es bug** (D-13). Nadie «arregla» las secuencias a mano |
 | El hash del seed es `$2y$...` y pgcrypto no lo valida | Quirk de pgcrypto, no del hash: solo coincide normalizando a `$2a$` | **No tocar el hash** (D-12). Se verifica con `bcrypt` de Python |
 | `kubectl apply --dry-run=client` no valida sin cluster | Sin cluster, kubectl no puede descargar el OpenAPI | La validación offline es `kubectl kustomize k8s/` (11 objetos) |

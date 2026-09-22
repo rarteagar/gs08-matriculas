@@ -1,0 +1,19 @@
+== 1. Red y dos bases limpias: una con db/init, otra vacia ==
+== 2. Esperando las dos bases (la primera tiene que haber corrido 01 a 04) ==
+   db/init lista con 5 tablas en 3s
+== 3. alembic upgrade head sobre la base vacia (imagen gs08-api:local) ==
+   revision aplicada: 0001_esquema_inicial
+== 4. Foto del catalogo de las dos bases ==
+  170 /d/dev/equipo/gs08-matriculas/docs/analisis/evidencia/catalogo-dbinit.txt
+  170 /d/dev/equipo/gs08-matriculas/docs/analisis/evidencia/catalogo-alembic.txt
+  340 total
+== 5. Comparacion linea por linea ==
+   IDENTICOS: los dos caminos dejan el mismo esquema y los mismos datos
+== 6. Secuencias: el catalogo compara que existan, no su last_value ==
+   usuarios     db/init=1    alembic=1    OK
+   estudiantes  db/init=12   alembic=12   OK
+   cursos       db/init=7    alembic=7    OK
+   matriculas   db/init=24   alembic=24   OK
+
+Evidencia: catalogo-dbinit.txt, catalogo-alembic.txt, catalogo-diff.txt
+Apagar: docker rm -f gs08-d14-init gs08-d14-alembic && docker network rm gs08-d14-net

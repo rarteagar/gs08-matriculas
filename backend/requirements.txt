@@ -1,0 +1,18 @@
+# ============================================================
+# GS08 - Matriculas y Notas | API FastAPI - dependencias de ejecucion
+# Autor: @dev | T1.1 | Sprint 1
+# Versiones fijadas: las del contrato de @devops (plan-contenedores-ci.md §3),
+# verificadas contra PyPI el 21/09/2026, mas las dos que el API necesita y no
+# estaban en ese contrato:
+#   bcrypt  -> verificar el hash $2y$ del seed (docs/analisis/modelo-datos.md §6.1)
+#   PyJWT   -> firmar el token de sesion (HS256)
+# ============================================================
+fastapi==0.141.1
+uvicorn==0.53.0
+SQLAlchemy==2.0.54
+psycopg[binary]==3.3.6
+alembic==1.20.0
+pydantic-settings==2.15.0
+prometheus-fastapi-instrumentator==8.1.0
+bcrypt==4.2.1
+PyJWT==2.10.1

@@ -26,85 +26,140 @@ API se completa cuando T1.1-T1.4 entreguen el código real.
 
 ## 1. Estado real del sistema
 
-| Capa | Estado al 21/09/2026 | Evidencia |
+**Actualizado el 21/09/2026 tras la ronda 2 de pruebas de @qa** (el API real ya existe: T1.1-T1.3 y las
+notas/boleta están entregados).
+
+| Capa | Estado | Evidencia |
 |---|---|---|
+| **API FastAPI real** | ✅ **existe: 28 endpoints publicados** (`POST /api/v1/auth/login`, estudiantes, cursos, matrículas, usuarios, notas, boleta, dashboard, health) | `curl http://localhost:8010/openapi.json` → título `GS08 · Matrículas y Notas`, versión `0.1.0` (ver §2.1) |
+| Autenticación y lectura de datos | ✅ **funcionando**: login `200` + token; `/api/v1/dashboard` → **12 / 7 / 23 / 1**; `?q=45123456` → 1 fila con acentos correctos (`Ramírez Torres`) | salidas reales pegadas en §2.1 |
+| **Notas y boleta** | ✅ **funcionando** (verificado a mano por @qa): nota `201`, repetida `409`, `nota=21` → `422`, nota sobre matrícula retirada → `409` (RN-14), boleta del estudiante 1 → C101 **16.00** y **promedio ponderado 13.43** = (16×4 + 10×3) ÷ 7; curso sin notas → `nota: null` | `docs/qa/plan-pruebas.md` §3 y `reporte-bugs.md` |
+| **`POST /api/v1/matriculas`** | ⛔ **500 (`AmbiguousParameter`)** — BUG-08: hoy **no se puede matricular por la API**, así que el recorrido §3 se corta en el paso 6 | `docs/qa/evidencia/api-500-ambiguousparameter.txt` (traceback) |
+| **`POST /api/v1/usuarios`** | ⛔ **500**, el mismo patrón — BUG-09: bloquea `C-22` y `C-23` | idem |
 | Contenedores, red, balanceo, failover | ✅ **funcionando** | `docker ps` (7 contenedores), `verificar_stack.py` → 9 OK exit 0 |
-| Esquema de datos + reglas en la base | ✅ **funcionando** | `ejecutar_verificacion.sh` → 49 OK exit 0 |
+| Esquema de datos + reglas en la base | ✅ **funcionando** | `verificar_modelo.sql` → **54 OK** y `verificar_notas.sql` → **32 OK**, exit 0 (re-corridos por @qa); `unaccent` ya está en `db/init/01-schema.sql` |
 | Observabilidad (Prometheus + Grafana) | ✅ **funcionando** (con datos del stub) | 3 targets `up`, 9 paneles con datos |
 | Manifiestos de Kubernetes | ✅ escritos y **renderizados** (11 objetos) | `kubectl kustomize k8s/` |
-| **API FastAPI real** | ⛔ **no existe**: `/api/v1/auth/login` → **404** | `docs/qa/plan-pruebas.md` §8 (T1.1) |
-| **SPA Vue real** | ⛔ **no existe** | `frontend/` solo tiene `Dockerfile` y `nginx/` (T2.4) |
+| **SPA Vue real** | ⛔ **no existe** | `frontend/` solo tiene `Dockerfile`, `.dockerignore` y `nginx/` (T2.4) |
 | **Cluster Kubernetes** | ⛔ **no desplegado**: `current-context is not set` | A-02 (falta autorización del dueño) |
 | **CI/CD en GitHub** | ⛔ escrito, **nunca ejecutado**: el repo no tiene remoto | `docs/devops/plan-contenedores-ci.md` §4.6 |
 
-> **Qué es lo que hoy responde en `:8000` y `:8080`:** el **arnés de humo** (`D:\dev\_tmp\gs08-smoke`), una
-> copia del compose del repo con un **stub** de API FastAPI (4 endpoints, versión `0.0.1`, título
-> «GS08 - Matriculas (stub de infraestructura)») y una SPA de un solo archivo (371 bytes). **Ese arnés no es
-> parte del repositorio**: se usó para validar la infraestructura antes de que exista el código de @dev.
+**Estado de los 39 criterios hoy** (cifra de @qa, `docs/qa/plan-pruebas.md` §3): **22 verificados con corrida
+real** · **4 incumplidos** por BUG-08/BUG-09 (`C-16`, `C-17`, `C-22`, `C-23`) · **2 en arreglo** con decisión
+tomada (`C-33` → TC-01, `C-34` → TC-03) · **6 pendientes** del guion de UI · **5 bloqueados** con motivo
+(`pytest`, cluster, CI, SPA).
+
+> **Qué responde hoy en cada puerto, para no confundirse:**
+> **`:8010`** → el **API real** de @dev, corriendo contra una base de pruebas limpia (contenedor en `55433`),
+> que es lo que usó @qa para probar. **`:8080`** (compose con el perfil `obs`) → todavía el **arnés de humo**
+> (`D:\dev\_tmp\gs08-smoke`, con el stub de API y una SPA de un archivo), porque **retirar el stub del compose
+> es T2.6** (`docker compose build web` aún no puede funcionar sin `frontend/package.json`).
+> Prueba de que `:8080` es el stub: `curl -s http://localhost:8080/api/v1/health` → `{"status":"ok","motor":"PostgreSQL 16.15 on x86_64-pc-linux-musl","instancia":"45580bc7ee70"}` y
+> `curl -o /dev/null -w '%{http_code}' http://localhost:8080/api/v1/dashboard` → **404** (el API real lo
+> responde con `200`, §2.1).
 
 ---
 
 ## 2. Contrato de la API
 
-### 2.1 Lo que existe HOY: el stub del arnés (no es el API del proyecto)
+### 2.1 Lo que existe HOY: el API real (28 endpoints)
 
-Contrato real del stub, enumerado desde su propio OpenAPI:
+Contrato real, enumerado desde su propio OpenAPI (API de @dev corriendo contra una base limpia en `:8010`):
 
 ```bash
-$ curl -s http://localhost:8000/openapi.json | python -c "import sys,json; d=json.load(sys.stdin); print(d['info']); [print(m.upper(), p) for p,v in d['paths'].items() for m in v]"
-{'title': 'GS08 - Matriculas (stub de infraestructura)', 'version': '0.0.1'}
-GET /health
-GET /api/v1/health
-GET /api/v1/estudiantes
-GET /api/v1/error-forzado
+$ curl -s http://localhost:8010/openapi.json | python -c "import sys,json; d=json.load(sys.stdin); print(d['info']); [print(m.upper(), p) for p,v in d['paths'].items() for m in v]"
+{'title': 'GS08 · Matrículas y Notas', 'version': '0.1.0',
+ 'description': 'API del MVP: autenticación, panel, estudiantes, cursos, matrículas, usuarios, notas y boleta.
+                 Esquema de datos: db/init/*.sql y la revisión 0001 de Alembic.'}
+GET  /health                                     GET  /api/v1/health
+POST /api/v1/auth/login                          GET  /api/v1/auth/yo
+GET  /api/v1/estudiantes                         POST /api/v1/estudiantes
+GET  /api/v1/estudiantes/{estudiante_id}         PUT  /api/v1/estudiantes/{estudiante_id}
+DELETE /api/v1/estudiantes/{estudiante_id}       GET  /api/v1/estudiantes/{id}/boleta
+GET  /api/v1/cursos                              POST /api/v1/cursos
+GET  /api/v1/cursos/{curso_id}                   PUT  /api/v1/cursos/{curso_id}
+DELETE /api/v1/cursos/{curso_id}
+GET  /api/v1/matriculas                          POST /api/v1/matriculas
+GET  /api/v1/matriculas/{matricula_id}           PUT  /api/v1/matriculas/{matricula_id}
+DELETE /api/v1/matriculas/{matricula_id}
+GET  /api/v1/matriculas/{matricula_id}/notas     POST /api/v1/matriculas/{matricula_id}/notas
+PUT  /api/v1/notas/{nota_id}                     DELETE /api/v1/notas/{nota_id}
+GET  /api/v1/usuarios                            POST /api/v1/usuarios
+GET  /api/v1/usuarios/{usuario_id}               PUT  /api/v1/usuarios/{usuario_id}
+DELETE /api/v1/usuarios/{usuario_id}             GET  /api/v1/dashboard
 ```
 
-Respuestas reales del stub (corridas el 21/09/2026 para este manual):
+Respuestas reales (corridas por @documentador el 21/09/2026 contra el API de @dev):
 
 ```
-$ curl http://localhost:8000/health
-{"status":"ok","motor":"PostgreSQL 16.15 on x86_64-pc-linux-musl","instancia":"ca662ba8ec69"}
+$ curl -s http://localhost:8010/api/v1/health
+{"status":"ok","motor":"PostgreSQL 16.15","instancia":"wambra","entorno":"local"}
 
-$ curl http://localhost:8080/api/v1/estudiantes
-{"total_mostrado":3,"estudiantes":[
-  {"codigo":"E20260001","nombres":"Carlos Alberto","apellidos":"Ramirez Torres"},
-  {"codigo":"E20260002","nombres":"Maria Fernanda","apellidos":"Quispe Huaman"},
-  {"codigo":"E20260003","nombres":"Luis Enrique","apellidos":"Gutierrez Salas"}]}
+$ curl -X POST http://localhost:8010/api/v1/auth/login -H 'Content-Type: application/json' \
+       -d '{"usuario":"admin","password":"Admin123!"}'
+-> HTTP 200 + access_token (JWT de 184 caracteres)
+
+$ curl -s -H "Authorization: Bearer $TOKEN" http://localhost:8010/api/v1/dashboard
+{"estudiantes_activos":12,"cursos_activos":7,"matriculas_activas":23,"usuarios_activos":1,
+ "top_cursos":[{"curso_id":1,"codigo":"C101","curso":"Matemática Básica","creditos":4,"matriculas":5},
+               {"curso_id":2,"codigo":"C102","curso":"Comunicación Efectiva","creditos":3,"matriculas":4},
+               {"curso_id":3,"codigo":"C201","curso":"Programación Web III","creditos":4,"matriculas":4},
+               {"curso_id":6,"codigo":"C204","curso":"Estadística Aplicada","creditos":3,"matriculas":3},
+               {"curso_id":5,"codigo":"C203","curso":"Inglés Técnico","creditos":2,"matriculas":3}],
+ "ultimos_estudiantes":[{"id":12,"codigo":"E20260012","dni":"56234567",
+                         "nombres":"Fiorella Milagros","apellidos":"Cárdenas Ruiz", …}]}
+
+$ curl -s -H "Authorization: Bearer $TOKEN" "http://localhost:8010/api/v1/estudiantes?q=45123456"
+{"total":1,"page":1,"page_size":25,"paginas":1,"estudiantes":[{"id":1,"codigo":"E20260001","dni":"45123456",
+ "nombres":"Carlos Alberto","apellidos":"Ramírez Torres","nombre_completo":"Ramírez Torres, Carlos Alberto",
+ "email":"cramirez@correo.pe","telefono":"987654321","fecha_nacimiento":"2005-03-14",
+ "direccion":"Av. Los Laureles 245, Lima","estado":true,"creado_en":"2026-09-22T04:04:11.429641Z"}]}
+
+$ curl -s -H "Authorization: Bearer $TOKEN" "http://localhost:8010/api/v1/estudiantes?q=huaman"
+-> total=1, «Quispe Huamán, María Fernanda»   (el buscador sin tildes encuentra el dato con tilde)
 ```
 
-Dos cosas para leer con cuidado: son **3** filas y **sin tildes** (`Ramirez Torres`, `Quispe Huaman`). El API
-real debe devolver **12** estudiantes y respetar los acentos (`Ramírez Torres`, `Quispe Huamán`) — la prueba
-de la integración esquema↔imagen muestra los acentos correctos en UTF-8
-(`docs/devops/evidencia-sprint0.md` §7). `/api/v1/error-forzado` es un endpoint del **stub** que existe
-únicamente para generar 5xx a pedido (se usó para reproducir y cerrar BUG-01); **no forma parte del contrato**
-del proyecto.
+Tres cosas que estas salidas demuestran: los **acentos viajan correctos en UTF-8** (`Ramírez`, `Huamán`,
+`Cárdenas`), el **KPI coincide con el seed** (12 / 7 / 23 / 1) y el **buscador sin tilde funciona**
+(`q=huaman` → 1, gracias a `unaccent`).
 
-### 2.2 Contrato completo comprometido (esto es lo que debe existir al cerrar T1.1-T3.1)
+> **El puerto `8080` sigue sirviendo el stub.** El compose del repo todavía levanta el arnés de humo
+> (`D:\dev\_tmp\gs08-smoke`, API stub de 4 endpoints + SPA de un archivo), porque retirarlo es **T2.6**.
+> Cómo distinguirlos sin adivinar: `curl -s http://localhost:8080/api/v1/health` →
+> `"instancia":"45580bc7ee70","motor":"PostgreSQL 16.15 on x86_64-pc-linux-musl"` (stub) contra
+> `"instancia":"wambra","motor":"PostgreSQL 16.15"` (API real); y `curl -o /dev/null -w '%{http_code}' http://localhost:8080/api/v1/dashboard`
+> → **404** en el stub (el API real responde 200). El endpoint `/api/v1/error-forzado` del stub, que sirvió
+> para reproducir BUG-01, **no** forma parte del contrato del proyecto.
+
+### 2.2 Contrato completo, con el estado real de cada fila
 
 Fuente: `docs/analisis/modelo-datos.md` §4 (casos de uso CU-01…CU-15), `docs/alcance-mvp.md` §4
 (criterios `C-01`…`C-39`) y `docs/devops/plan-contenedores-ci.md` §3 (contrato con @dev).
-**Estado de todas las filas: contrato, no implementado.**
+**Estados (los de @qa, `docs/qa/plan-pruebas.md` §3):** ✅ implementado y con corrida verde ·
+⛔ **500 hoy** (BUG-08/BUG-09) · ⬜ escrito sin verificación · 🔒 bloqueado por decisión/otra tarea.
 
-| Método y ruta | Qué hace | Códigos | Criterios | Tarea |
+| Método y ruta | Qué hace | Códigos | Criterios | Estado |
 |---|---|---|---|---|
-| `GET /health` | salud del API **con** verificación de PostgreSQL | 200 | C-34 | T1.1 |
-| `GET /api/v1/health` | lo mismo, para entrar por el proxy | 200 | C-34 | T1.1 |
-| `GET /metrics` | métricas en formato Prometheus (instrumentator 8.1.0) | 200 | C-34 | T1.1 |
-| `POST /api/v1/auth/login` | entra con **usuario o email** (`WHERE nombre_usuario = :u1 OR email = :u2`, igual que `login.php`) | 200 + token · **401** clave mala o usuario inactivo | C-01, C-02 | T1.2 |
-| `GET /api/v1/dashboard` | 4 KPIs + top 5 cursos + últimos 6 estudiantes, desde `v_matriculas_detalle` | 200 (con seed: **12 / 7 / 23 / 1**); sin matrículas `200` con `top: []` | C-05, C-06, C-07 | T1.4 |
-| `GET /api/v1/estudiantes?q=&estado=&page=&page_size=` | listado paginado + buscador por código, DNI, nombres o apellidos | 200 · **422** si `page_size` es 0/200/`abc` | C-08, C-09, C-10 | T1.3 |
-| `POST /api/v1/estudiantes` | alta | **201** · **422** (DNI de 7 dígitos, DNI/código repetido, email inválido). **Nunca 500** | C-11 | T1.3 |
-| `PUT /api/v1/estudiantes/{id}` | edición (incluye baja lógica con `estado=false`) | 200 · 422 · 409 (auto-desactivarse) | C-11, C-12, C-04 | T1.3, T1.2 |
-| `DELETE /api/v1/estudiantes/{id}?confirmar=` | borrado destructivo en dos pasos | **409** `{"detail":"…","matriculas":N}` sin `?confirmar` · **204** con `?confirmar=true` | C-30, C-31, C-32 | T2.3 |
-| `GET /api/v1/cursos?q=&estado=` | listado y filtro de cursos | 200 | — | T1.3 |
-| `POST·PUT·DELETE /api/v1/cursos/{id}` | alta/edición/baja; `creditos` 1..10, `horas` 1..1000, default `creditos=3` | **422** (`creditos=0/11`, `horas=0`) · **409** (código repetido) · 204 con `?confirmar=true` | C-13, C-14, C-15, C-30 | T1.3, T2.3 |
-| `GET /api/v1/matriculas?q=&periodo=` | listado con estudiante y curso (vista), filtro por texto y periodo | 200 · **422** (periodo `2026-13`, `2026/02`, `26-02`) | C-16, C-18, C-21 | T2.1 |
-| `POST /api/v1/matriculas` | crear matrícula | **201** · **409** duplicado con el mensaje **«Ese estudiante ya está matriculado en ese curso para el periodo indicado»** · **404** si el estudiante o el curso no existen | C-16, C-17, C-19 | T2.1 |
-| `PUT /api/v1/matriculas/{id}` | editar y **retirar** (`estado="retirado"`, baja lógica) | 200 (el KPI baja exactamente **1** y la fila sigue en el historial) | C-20 | T2.1 |
-| `DELETE /api/v1/matriculas/{id}` | eliminar matrícula | 204 | — | T2.1 |
-| `GET·POST·PUT /api/v1/usuarios` | gestión de usuarios (**solo `admin`**) | **403** para `asistente` · **409** `nombre_usuario` repetido · **422** contraseña de 7 o rol inválido | C-22, C-23 | T2.2 |
-| `POST /api/v1/matriculas/{id}/notas` | registrar nota (Sprint 3) | **201** · **422** (`nota` 21/-1, `tipo="examen"`) · **409** duplicado `(matricula,tipo,numero)` **y** nota sobre matrícula `retirado` | C-24, C-25, C-26 | T3.1 |
-| `GET /api/v1/estudiantes/{id}/boleta?periodo=` | boleta con nota por curso y promedio ponderado por créditos | 200: `14/16/18 → 16.00`; curso sin notas → `nota: null` (no cuenta como 0) | C-27, C-28, C-29 | T3.1 |
+| `GET /health` | salud del API **con** verificación de PostgreSQL | 200 | C-34 | ✅ (por `:8000`; por el proxy falta TC-03) |
+| `GET /api/v1/health` | lo mismo, para entrar por el proxy | 200 | C-34 | ✅ |
+| `GET /metrics` | métricas en formato Prometheus (instrumentator 8.1.0) | 200 | C-34 | ✅ directo en `:8000` (D-17) |
+| `POST /api/v1/auth/login` | entra con **usuario o email** (`WHERE nombre_usuario = :u1 OR email = :u2`, igual que `login.php`) | 200 + token · **401** clave mala o usuario inactivo | C-01, C-02 | ✅ verificado con corrida |
+| `GET /api/v1/auth/yo` | datos del usuario de la sesión | 200 · 401 | — | ⬜ |
+| `GET /api/v1/dashboard` | 4 KPIs + top 5 cursos + últimos 6 estudiantes, desde `v_matriculas_detalle` | 200 (con seed: **12 / 7 / 23 / 1**) | C-05, C-06, C-07 | ✅ verificado con corrida |
+| `GET /api/v1/estudiantes?q=&estado=&page=&page_size=` | listado paginado + buscador (código, DNI, nombres, apellidos) | 200 · **422** si `page_size` es 0/200/`abc` | C-08, C-09, C-10 | ✅ `q=huaman`/`Huamán`/`HUAMAN` → **1/1/1** (con `unaccent`) |
+| `POST /api/v1/estudiantes` | alta | **201** · **422** (DNI de 7 dígitos, repetidos, email inválido). **Nunca 500** | C-11 | ✅ verificado (422 con el campo) |
+| `PUT /api/v1/estudiantes/{id}` | edición (incluye baja lógica con `estado=false`) | 200 · 422 · 409 (auto-desactivarse) | C-11, C-12, C-04 | ✅ el `409` de la propia cuenta (RN-11) |
+| `DELETE /api/v1/estudiantes/{id}?confirmar=` | borrado destructivo en dos pasos | **409** `{"detail":"…","matriculas":N}` sin `?confirmar` · **204** con `?confirmar=true` | C-30, C-31, C-32 | ✅ verificado |
+| `GET /api/v1/cursos?q=&estado=` | listado y filtro de cursos | 200 | — | ✅ |
+| `POST·PUT·DELETE /api/v1/cursos/{id}` | alta/edición/baja; `creditos` 1..10, `horas` 1..1000, default `creditos=3` | **422** (`creditos=0/11`, `horas=0`) · **409** (código repetido) | C-13, C-14, C-15 | ✅ los 422 y el 409 de código repetido |
+| `GET /api/v1/matriculas?q=&periodo=` | listado con estudiante y curso (vista), filtro por texto y periodo | 200 · **422** (periodo `2026-13`, `2026/02`) | C-18, C-21, C-24 | ✅ |
+| `POST /api/v1/matriculas` | crear matrícula | **500 hoy** (BUG-08) — deberían ser **201**, **409** «Ese estudiante ya está matriculado en ese curso para el periodo indicado» y **404** por FK | C-16, C-17, C-19 | ⛔ **`AmbiguousParameter` en `_verificar_duplicado()`** |
+| `PUT /api/v1/matriculas/{id}` | editar y **retirar** (`estado="retirado"`, baja lógica) | 200 (el KPI baja exactamente **1** y la fila sigue en el historial) | C-20 | ✅ verificado (retirar y conservar notas) |
+| `DELETE /api/v1/matriculas/{id}` | eliminar matrícula | 204 | — | ⬜ |
+| `GET·POST /api/v1/usuarios` | gestión de usuarios (**solo `admin`**) | **403** para `asistente` · **409** `nombre_usuario` repetido · **422** clave de 7 o rol inválido | C-22, C-23 | ⛔ **`POST` da 500 (BUG-09)**; sin crear un `asistente` no se puede probar el `403` |
+| `POST /api/v1/matriculas/{id}/notas` | registrar nota | **201** · **422** (`nota` 21/-1, `tipo="examen"`) · **409** duplicado **y** nota sobre matrícula `retirado` (RN-14) | C-24, C-25, C-26 | ✅ **funcionando** (verificado a mano por @qa) |
+| `PUT·DELETE /api/v1/notas/{id}` | editar / eliminar nota | 200 · 204 | — | ⬜ |
+| `GET /api/v1/estudiantes/{id}/boleta?periodo=` | boleta con nota por curso y promedio ponderado por créditos | 200: `14/16/18 → 16.00`; curso sin notas → `nota: null` (no cuenta como 0) | C-27, C-28, C-29 | ✅ **funcionando**: estudiante 1 → C101 **16.00**, **promedio ponderado 13.43** = (16×4 + 10×3) ÷ 7 |
 
 ### 2.3 Reglas transversales del contrato
 
@@ -457,9 +512,9 @@ X-Upstream-Addr: 172.18.0.5:8000
 `location /api/` declara `X-Upstream-Addr` y por eso pierde los tres. **Arreglo:** repetir los `add_header`
 dentro de la location (o `include` de un archivo común). Detalle: `docs/qa/reporte-bugs.md` BUG-06.
 
-### 9.3 BUG-07 · Sin `unaccent` el buscador no encuentra tildes (Alta, sin arreglo aplicado)
+### 9.3 BUG-07 · Sin `unaccent` el buscador no encontraba tildes — **mitad resuelta**
 
-Medido contra la base del seed:
+Medido contra la base del seed (ronda 1):
 
 | Consulta | Sin `unaccent` | Con `unaccent` |
 |---|---|---|
@@ -467,12 +522,39 @@ Medido contra la base del seed:
 | `?q=Huamán` | 1 | 1 |
 | `?q=HUAMAN` | **0 filas** | 1 |
 
-`ILIKE` ignora mayúsculas pero **no** tildes; el dato del seed es `Quispe Huamán`. La extensión **está
-disponible** en la imagen (`unaccent 1.1`) pero **no instalada**. **Qué falta:** `CREATE EXTENSION unaccent`
-en `db/init/` **y** en la migración inicial de Alembic (D-14: si va en un solo lado, vuelven a existir dos
-verdades del esquema). **Dueño:** @dev (el buscador usa `unaccent(apellidos) ILIKE unaccent(%q%)`) + @analista
-(el DDL). El smoke ya falla con el mensaje correcto si falta (`SM-15 [C-08]`).
-Detalle: `docs/qa/reporte-bugs.md` BUG-07.
+`ILIKE` ignora mayúsculas pero **no** tildes; el dato del seed es `Quispe Huamán`. **Estado: la mitad de
+`db/init/` está hecha** (`CREATE EXTENSION unaccent` en `db/init/01-schema.sql`, verificado por @qa recreando
+la base: extensión `1.1` y `1/1/1` en las tres variantes) **y el API real ya responde `q=huaman` → 1**
+(comprobado en §2.1). **Falta la mitad de Alembic** (la extensión en la revisión inicial, D-14): si va en un
+solo lado, vuelven a existir dos verdades del esquema. Detalle: `docs/qa/reporte-bugs.md` BUG-07.
+
+### 9.3-bis BUG-08 · `POST /api/v1/matriculas` responde **500** (`AmbiguousParameter`)
+
+**Síntoma (el peor de los abiertos):** una matrícula **nueva y válida** y una **duplicada** devuelven las dos
+**500**, así que **hoy no se puede matricular por la API** y el recorrido de extremo a extremo de §3 se corta
+en el paso 6. Afecta `C-16`, `C-17` y `C-19`.
+
+```
+psycopg.errors.AmbiguousParameter: could not determine data type of parameter $4
+[SQL: SELECT id FROM matriculas WHERE estudiante_id = %(e)s AND curso_id = %(c)s AND periodo = %(p)s
+      AND (%(propia)s IS NULL OR id <> %(propia)s)]   {'propia': None}
+  -> app/routers/matriculas.py:129  _verificar_duplicado()  (llamada desde crear(), línea 143)
+```
+
+**Causa medida:** con `propio=None`, ni el `IS NULL` ni el `<>` le dan tipo al parámetro. **Falla solo en el
+`INSERT`** (en el `PUT` el valor llega). **Arreglo (2 líneas, de @dev):** `CAST(:propio AS integer)` en las dos
+apariciones, o armar la condición en Python (`"" if propio is None else " AND id <> :propio"`).
+Evidencia: `docs/qa/evidencia/api-500-ambiguousparameter.txt`.
+
+### 9.3-ter BUG-09 · `POST /api/v1/usuarios` responde **500** (mismo patrón)
+
+`parameter $3`, `… nombre_usuario = :x OR lower(email) = lower(:y)) AND (:propio IS NULL …`. Bloquea el `409`
+de `C-22` y, sin poder crear un `asistente`, el `403` de `C-23`. Mismo arreglo.
+
+> **Cómo reproducir los dos** sin tocar el stack de @devops (lo dejó escrito @qa): base limpia desde
+> `db/init` en el `55433` + `uvicorn --port 8010` con un venv de `backend/requirements.txt` +
+> `bash scripts/smoke_api.sh --solo-contrato --e2e --url http://localhost:8010`. Se apaga con
+> `docker rm -f gs08-qa-api`.
 
 ### 9.4 Quirk `$2y$` de pgcrypto: el hash del seed no se valida desde SQL (no es un bug)
 

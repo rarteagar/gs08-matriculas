@@ -115,8 +115,34 @@ documenta y lo que se mide.*
 | **TC-03** | **BUG-05**: `/health` y `/metrics` por el proxy devuelven 200 con el `index.html` del SPA | @devops | nginx | `curl -o /dev/null -w '%{http_code}' http://localhost:8080/metrics` → **404** (igual `/health`); `/api/v1/health` → **200**; `/metrics` directo en `:8000` sigue dando texto Prometheus. Detalle en **D-17** |
 | **TC-04** | Actualizar la matriz de pruebas a los **39 criterios con ID** (`C-01`…`C-39`), corregir el DNI del caso de búsqueda a `45123456` y marcar BUG-02/03/04 como cerrados citando la revisión 2 del alcance | @qa | `docs/qa/plan-pruebas.md` rev. 2 | cada fila declara su `C-xx`; **39/39 criterios mapeados** (si un criterio lleva dos casos, los dos citan el mismo `C-xx`); el reporte de bugs tiene los 6 con su estado final |
 | **TC-05** | Alcance corregido y con denominador único | @pm | `docs/alcance-mvp.md` rev. 2 | ✅ hecho: 39 criterios numerados, `admin@horizonte.edu.pe`, DNI `45123456`, salud/métricas reescrito |
+| **TC-06** | Arreglar el **paso 9 del smoke** (el que queda en FALLA con la API ya corregida): compara `nota` contra `nota_curso` y recorta el cuerpo a 500 bytes | @qa | `scripts/smoke_api.sh` | `bash scripts/smoke_api.sh --e2e` → **38/38, exit 0**, sin tocar el stack de @devops |
+| **TC-07** | Verificar el **paquete académico** (`docs/informe/`: DOCX, PDF, PPTX, PDF) contra los 7 puntos de TD-09 | @qa | reporte corto en `docs/qa/` | los 7 puntos con evidencia: ① 10 láminas ② una idea por lámina ③ español ④ los 3 nombres + curso + **Dr. Jack Peralta** ⑤ firma grupal en el DOCX ⑥ cada lámina cita su fuente ⑦ lámina de k8s con el estado real |
+| **TC-08** | Meter el control de D-14 en el **job `infra` del CI**: `db/verificacion/comparar_con_alembic.sh` (exit 0 = `db/init/` y Alembic coinciden; 2 = la foto del catálogo falló) | @devops | `.github/workflows/ci.yml` | el job `infra` corre el script y **falla si el exit no es 0**, sin necesitar el SPA (solo la imagen del backend). Evidencia: dos corridas, una en verde y otra forzando el fallo |
 
 ---
+
+## Estado real del Sprint 1 al 21/09/2026 23:21
+
+*Lo que sigue está **medido**, no resumido: las cifras entre corchetes las comprobé yo mismo con `curl` o contando
+dentro de los archivos. Lo que no verifiqué va marcado como «reportado por».*
+
+| Tarea | Estado | Evidencia | Verificación de @pm |
+|---|---|---|---|
+| **T1.1** esqueleto + Alembic (D-14) | ✅ entregado | `docs/dev/evidencia-sprint1.md` | `curl localhost:8000/api/v1/health` → **200**; `openapi.json` → **16 rutas / 30 operaciones**, `version 0.1.0` (medido hoy 23:21) |
+| **T1.2** auth (`login`, `GET /auth/yo`) | ✅ entregado | smoke grupo B: C-01, C-04 verdes (reportado por @qa) | — |
+| **T1.3** estudiantes y cursos (`ILIKE`, `unaccent`) | ✅ entregado | smoke: C-05…C-11, C-13, C-14 verdes; `q=huaman`/`Huamán`/`HUAMAN` → 1/1/1 | — |
+| **T1.4** panel con los 4 KPIs | ✅ entregado | `docs/dev/evidencia/verificar-stack-rrpath-estudiantes.txt` | — |
+| **BUG-08 / BUG-09** (`500` por `AmbiguousParameter`) | ✅ **cerrados** | arreglo 23:09:10 (`matriculas.py:138`, `usuarios.py:42`), smoke de @dev 23:12:54 (**37 OK, 1 FALLA del propio script**) | la corrida de @qa quedó sobre el código anterior a las 23:09: **@qa tiene que re-correr su sandbox** y recién entonces los 4 criterios pasan a verde oficialmente |
+| **D-14**: ¿dos fuentes del esquema? | ✅ **verificada: no** | `docs/analisis/verificacion-d14-alembic.md` y `docs/dev/evidencia/d14-comparar-con-alembic.txt` (**170/170 líneas idénticas, exit 0**, y `downgrade base` limpio) | reportado por @analista y @dev; el script es ahora el control único |
+| **T1.5** notas + boleta (RN-14/RN-15) | ✅ entregado | `verificar_notas.sql` **32 OK**; boleta real: C101 **16.00**, ponderado **13.43** | reportado por @qa y @analista |
+| **T1.6** minikube + k8s desplegado | ⛔ **espera la decisión A-02** | — | verifiqué hoy: minikube/kind/k3s **siguen sin instalar** y `kubectl` sin contexto |
+| **T1.7** plan de pruebas + smoke | ✅ entregado, con 1 FALLA **del script** | `docs/qa/plan-pruebas.md`, `scripts/smoke_api.sh` | **TC-06**: arreglar el paso 9 antes de dar la corrida por buena |
+| **T1.8 / TD-01…TD-10** documentación y paquete académico | ✅ borradores entregados | `docs/informe/` (4 archivos) + README, arquitectura, manual técnico, seguridad/ética, actas | conté el PPTX por dentro: **10 láminas, 10 notas del expositor**, carátula con los 3 nombres y el Dr. Jack Peralta ✅ — **faltan las cifras: ver TD-11** |
+| **TC-01 / TC-02 / TC-03** (@devops) | ⬜ pendientes | — | medí hoy por el proxy: `/metrics` → **200** y `/health` → **200** (con TC-03 deben dar **404**) |
+| **T2.4** SPA Vue 3 (**camino crítico**) | ⬜ sin arrancar | `frontend/` sin `package.json`: `docker compose up -d --build` falla en el servicio `web` | bloquea **TD-01, TD-03 y los 6 criterios de UI**: es lo único que hoy detiene al proyecto |
+
+**Camino crítico declarado:** **T2.4 (SPA)**. Todo lo demás que queda pendiente (TD-01, TD-03, los 6 criterios de UI,
+TC-07) cuelga de esa tarea; TC-01/02/03 y T1.6 son de @devops y no la bloquean.
 
 ## Documentación de entrega (transversal a S1–S4) — dueño: @documentador
 
@@ -136,9 +162,10 @@ hecho. Todo se redacta sobre la evidencia ya en el repo (`docs/devops/evidencia-
 | **TD-05** | `docs/actas/acta-sprint-0.md` | **ahora** | asistentes y fecha, entregables con su evidencia (tabla de Sprint 0 de este backlog), decisiones D-00…D-22, riesgos abiertos, bloqueos (Kubernetes, push, fecha de entrega A-01) y acuerdos. Cada entregable cita archivo/commit |
 | **TD-06** | `docs/actas/retrospectiva-sprint-0.md` | **ahora** | qué salió bien / qué no / acciones con dueño: las 3 correcciones de @devops (round-robin con `zone`, `max_fails` + `proxy_next_upstream`, el gauge que no existe en el instrumentator 8.1.0), los hallazgos de @analista (LIKE vs ILIKE, `$2y$`, ids con huecos), los 6 bugs de @qa (incluidos los 4 de su propio script) y las 5 correcciones del PM (BUG-02/03/04 y mi conteo: dije 35, el real es **39**). Cada hallazgo con su evidencia y su acción cerrada o asignada a T<xx> |
 | **TD-07** | `docs/decisiones.md` | **ahora** (mantenido por @pm) | tabla con fecha, motivo y estado; stack (D-00), minikube driver docker (D-04), rama `main` (D-05) y las abiertas (A-01/A-02). **@documentador lo cita tal cual, no lo reescribe ni lo duplica en `docs/`** |
-| **TD-08** | `docs/seguridad-etica-sostenibilidad.md` | **ahora** (crece con S2–S3) | **Seguridad:** bcrypt coste 10 y hash `$2y$` del seed, tokens/roles y `403` por rol, 4 headers de nginx (TC-02), ningún secreto en git (`k8s/02-secret.example.yaml`), SBOM/provenance de GHCR, superficie expuesta (4000/8080/3000/9090 solo en local). **Ética:** DNI y datos del estudiante = dato personal (Ley 29733), minimización (no se guarda nada de salud ni de menores), notas como dato sensible, notas del legacy como datos de prueba ficticios, IA usada declarada. **Sostenibilidad:** imágenes alpine, un contenedor por servicio, `k8s` en una laptop sin nube, costo 0, mantenibilidad (tests + verificación reproducible). Lo legal se escribe como **mapa a verificar con asesoría**, no como dictamen |
+| **TD-08** | `docs/seguridad-etica-sostenibilidad.md` | **ahora** (crece con S2–S3) | **Seguridad:** bcrypt coste 10 y hash `$2y$` del seed, tokens/roles y `403` por rol, 4 headers de nginx (TC-02), ningún secreto en git (`k8s/02-secret.example.yaml`), SBOM/provenance de GHCR, superficie expuesta en local: **8080** (SPA/nginx), **8000** (API), **5432** (PostgreSQL), **9090** (Prometheus), **3000** (Grafana); 55432/55433 solo para las bases de verificación. *(El «4000» que decía este renglón no existe: verificado contra `docker-compose.yml` y `curl` el 21/09 — corregido)*. **Ética:** DNI y datos del estudiante = dato personal (Ley 29733), minimización (no se guarda nada de salud ni de menores), notas como dato sensible, notas del legacy como datos de prueba ficticios, IA usada declarada. **Sostenibilidad:** imágenes alpine, un contenedor por servicio, `k8s` en una laptop sin nube, costo 0, mantenibilidad (tests + verificación reproducible). Lo legal se escribe como **mapa a verificar con asesoría**, no como dictamen |
 | **TD-09** | **DOCX + PPTX de entrega académica** | antes de la exposición | **Español, firma grupal, 3 integrantes en la carátula y docente Dr. Jack Peralta (D-23).** @documentador arma el **borrador** de los dos a partir de los documentos de arriba, con las mismas tablas y salidas reales; el **PPTX son 10 láminas exactas, una idea por lámina**, con el reparto de la sección «Entregable académico» y el recorrido de `docs/alcance-mvp.md` §3 en la lámina de demo. **La versión académica final —portada, formato, normas de la facultad y firma— la cierra el dueño** (@user). Ningún dato que no esté ya en los documentos con su evidencia |
 | **TD-10** | Actualizar `docs/actas/acta-sprint-0.md` y `retrospectiva-sprint-0.md` (ya escritas) con los **datos del grupo y del docente** (D-23) y con el reparto por integrante | **ahora** | el acta lista a los 3 integrantes con su rol y acredita la asistencia al Sprint 0; la retrospectiva mantiene sus hallazgos y agrega el reparto por bloques. Ninguna cifra cambia |
+| **TD-11** | **Refrescar las cifras del paquete académico** (los 4 archivos de `docs/informe/`) y el reparto de láminas | **ahora** | ① **32 endpoints**, no 28: `GET /openapi.json` → **16 rutas / 30 operaciones** + `/` y `/metrics` (comando de @dev, verificado por @pm); ② «4 incumplidos por los dos `500`» → **0 incumplidos** y BUG-08/09 documentados como cerrados (arreglo 23:09:10, smoke 23:12:54); ③ la única FALLA que quede en el smoke es **del script** (TC-06), no del API; ④ la lámina de k8s mantiene *«no desplegado en esta máquina»*. **Ninguna cifra propia: se copian de la fuente dueña** (@dev para la API, @qa para los criterios, @devops para infra, **D-25**) y en las 4 versiones a la vez |
 
 **Bloqueos declarados de esta tanda:** TD-03 espera T2.4 (SPA), TD-09 espera TD-01…TD-08 y la fecha de
 exposición (A-01), y el despliegue de k8s de TD-04/TD-02 espera la decisión del dueño sobre instalar
@@ -158,20 +185,24 @@ docente **Dr. Jack Peralta**. **Cada integrante documenta y expone su bloque.**
 | **Díaz Cárdenas, Jorge Luis** | Backend | @dev | modelo de datos, reglas de negocio, API, pruebas de API | láminas 4, 5, 9 |
 | **Inocencio Gargate, Dalcir** | Frontend + Documentador | @dev (SPA) + @documentador | SPA/UX, manual de usuario, actas, informe y PPTX | láminas 2, 6 |
 
-### Las 10 láminas (una idea por lámina, en español)
+### Las 10 láminas — orden del deck entregado
 
-| # | Idea única | Se apoya en | Expone |
+*(Mapa actualizado el 21/09/2026 23:21 al deck que existe: `docs/informe/exposicion-gs08-10-laminas-2026-09-21.pptx`.
+@pm lo verificó contando dentro del archivo: **10 láminas, 10 notas del expositor**, carátula con los 3 nombres, el
+curso y el docente. El orden de la tabla es el del deck, no el de la primera propuesta.)*
+
+| # | Idea única (título real de la lámina) | Se apoya en | Expone |
 |---|---|---|---|
-| 1 | Carátula: proyecto, curso, docente, los 3 integrantes y firma grupal | `docs/actas/acta-sprint-0.md` | Roberto |
-| 2 | El problema y el alcance del MVP: qué entra y qué NO entra | `docs/alcance-mvp.md` §1 y §5 | Dalcir |
-| 3 | Arquitectura y stack: FastAPI + PostgreSQL 16 + Vue 3 + Tailwind, Docker, k8s, Prometheus/Grafana | `docs/arquitectura.md` | Roberto |
-| 4 | Modelo de datos y reglas: 4 tablas + 16 CHECK / 6 UNIQUE / 2 FK + notas, 49 comprobaciones | `docs/analisis/modelo-datos.md` | Jorge |
-| 5 | API: contrato y comportamiento (`200/201/204/401/403/404/409/422/500`) | `docs/manual-tecnico.md` | Jorge |
-| 6 | La SPA: el recorrido del usuario en pantalla, de la matrícula a la nota | `docs/manual-usuario.md` + `alcance-mvp.md` §3 | Dalcir |
-| 7 | Contenedores y CI: 6 contenedores, balanceo y failover, GitHub Actions | `docs/devops/plan-contenedores-ci.md` | Roberto |
-| 8 | Kubernetes local y observabilidad: 11 objetos, Prometheus, Grafana | `docs/devops/evidencia-sprint0.md` | Roberto |
-| 9 | Calidad: los 39 criterios `C-01`…`C-39` y los 6 bugs que aparecieron probando | `docs/qa/plan-pruebas.md`, `reporte-bugs.md` | Jorge |
-| 10 | Sprint 0 → Sprint 4: lo entregado, lo bloqueado y la retrospectiva | `docs/actas/retrospectiva-sprint-0.md` | Roberto |
+| 1 | Carátula: curso, docente, los 3 integrantes con su rol y firma grupal | actas §1.1 + carátula del DOCX | Roberto |
+| 2 | Sprint 0 → Sprint 4: entregado, bloqueado y retrospectiva | `docs/actas/retrospectiva-sprint-0.md` | Roberto |
+| 3 | El problema y el alcance del MVP: qué entra y qué NO entra | `docs/alcance-mvp.md` §1 y §5 | Dalcir |
+| 4 | Arquitectura y stack | `docs/arquitectura.md` | Roberto |
+| 5 | Modelo de datos y reglas de negocio | `docs/analisis/modelo-datos.md` | Jorge |
+| 6 | API: contrato y comportamiento | `docs/manual-tecnico.md` + `GET /openapi.json` (**16 rutas / 30 operaciones** + `/` y `/metrics` = 32) | Jorge |
+| 7 | La SPA: el recorrido del usuario en pantalla | `docs/manual-usuario.md` + `alcance-mvp.md` §3 | Dalcir |
+| 8 | Contenedores y CI | `docs/devops/plan-contenedores-ci.md` | Roberto |
+| 9 | Kubernetes local y observabilidad | `docs/devops/evidencia-sprint0.md` | Roberto |
+| 10 | Calidad: los 39 criterios y lo que apareció probando | `docs/qa/plan-pruebas.md` + `reporte-bugs.md` | Jorge |
 
 **Cómo se verifica el PPTX (criterio de terminado de TD-09):** ① exactamente **10 láminas**; ② **una idea
 por lámina** (sin viñetas apiladas); ③ en **español**; ④ la carátula lleva los **3 nombres, el curso y al

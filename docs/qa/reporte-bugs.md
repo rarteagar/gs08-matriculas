@@ -8,13 +8,15 @@ o resultado no reproducible · *Baja* = molestia, no bloquea.
 
 | # | Título | Gravedad | Dueño | Estado final |
 |---|---|---|---|---|
-| BUG-01 | `verificar_stack.py` da FALLA en un entorno recién levantado: el criterio «exit 0» no es reproducible | Alta | @devops | **Aceptado — D-19** (serie ausente = advertencia). Arreglo en **TC-01**; pendiente de verificación por mí |
+| BUG-01 | `verificar_stack.py` da FALLA en un entorno recién levantado: el criterio «exit 0» no es reproducible | Alta | @devops | **Cerrado — verificado por mí (TC-01)**: `verificar_stack.py` dos veces seguidas → `13 OK, 1 advertencia, 0 fallas`, exit 0 y exit 0 |
 | BUG-02 | El criterio AP-01 citaba un email que no existe en el seed | Media | @pm (+@analista) | **Cerrado — D-21**: el alcance (rev. 2) cita `admin@horizonte.edu.pe` en `C-01` |
 | BUG-03 | El criterio AP-03 citaba un DNI que no existe en el seed | Media | @pm (+@analista) | **Cerrado — D-21**: `C-09` cita el DNI `45123456` del seed |
 | BUG-04 | El alcance anunciaba 35 criterios; §4 tenía 39 | Media | @pm | **Cerrado — D-18**: 39 criterios con ID `C-01`…`C-39`, denominador único de T4.2 |
-| BUG-05 | `/health` y `/metrics` por el proxy devuelven el `index.html` con **200** | Alta | @pm + @devops | **Aceptado — D-17**: `/metrics` directo en `:8000` y nginx **404** en `/health` y `/metrics`. Arreglo en **TC-03**; pendiente de verificación por mí |
+| BUG-05 | `/health` y `/metrics` por el proxy devuelven el `index.html` con **200** | Alta | @pm + @devops | **Cerrado — verificado por mí (TC-03)**: `localhost:8080/health` → **404**, `/metrics` → **404**, `/api/v1/health` → **200**; `localhost:8000/metrics` con texto Prometheus |
 | BUG-06 | Los headers de seguridad no llegan a las respuestas de `/api/` | Baja | @devops | **Aceptado** (decisión de @pm en la sala). Arreglo en **TC-02**; pendiente de verificación por mí |
-| BUG-07 | **`C-08` no se puede cumplir con `ILIKE` solo: falta la extensión `unaccent`** | Alta | @dev (+@analista, DDL) | **Nuevo** (ronda 2). Sin arreglo asignado todavía |
+| BUG-07 | **C-08 no se puede cumplir con `ILIKE` solo**: falta la extensión `unaccent` | Alta | @dev (+@analista, DDL) | **Cerrado en `db/init/` — verificado por mí** (1 / 1 / 1). Falta la misma extensión en la revisión inicial de Alembic (D-14, T1.1 de @dev) |
+| BUG-08 | **`POST /api/v1/matriculas` → 500** (`AmbiguousParameter`): rompe C-16, C-17 y todo el recorrido E2E | **Crítica** | @dev | **Cerrado — verificado por mí**: duplicado → **409** con el mensaje del legacy y matrícula nueva → 201. El smoke completo da **31 OK, 0 fallas, exit 0** |
+| BUG-09 | **`POST /api/v1/usuarios` → 500** (`AmbiguousParameter`): rompe C-22 (409) y C-23 (403 por rol) | **Crítica** | @dev | **Cerrado — verificado por mí**: `POST /api/v1/usuarios` → 201, duplicado → **409**; el 403 por rol entra en la corrida verde |
 
 > **Regla:** un bug se cierra con la corrida verde, no con la decisión. Los tres que están «pendiente de
 > verificación» los vuelvo a probar yo cuando @devops aplique TC-01/TC-02/TC-03, con el comando pegado en
@@ -243,6 +245,123 @@ vuelven a existir dos verdades del esquema (D-14). Y `D-11` dice «`unaccent` si
 es de **matrículas** (`/matriculas?q=huaman`, el estudiante 2 tiene 2 matrículas). En `/api/v1/estudiantes`
 el mismo `q` devuelve **1 fila** (una sola persona con ese apellido). Las dos están bien; citadas en el
 endpoint equivocado, no.
+
+**VERIFICADO POR MÍ (21/09, después de la corrección de @analista):** `CREATE EXTENSION IF NOT EXISTS
+unaccent;` está en `db/init/01-schema.sql` (con la nota del `op.execute` para Alembic). Recreé la base desde
+`db/init/` en el contenedor de verificación y medí **1 / 1 / 1**:
+```
+$ docker exec gs08-analista-verif psql -U gs08 -d gs08_matriculas -c "select extname, extversion from pg_extension where extname='unaccent';"
+unaccent | 1.1
+$ ... select count(*) from estudiantes where unaccent(apellidos) ilike unaccent('%huaman%');  -> 1
+                                     ... ilike unaccent('%Huamán%');                          -> 1
+                                     ... ilike unaccent('%HUAMAN%');                          -> 1
+```
+El log del entrypoint confirma que corrió `04-notas.sql` después de `01`–`03` sin un solo error.
+
+**Estado:** **cerrado en `db/init/` — verificado por mí.** Queda **una mitad abierta**: la misma extensión
+tiene que estar en la **revisión inicial de Alembic** (D-14). Hoy `alembic/` no existe, así que eso va con
+T1.1 de @dev; cuando esté, lo verifico con `alembic upgrade head` sobre base limpia y `\dx unaccent`.
+
+---
+
+## BUG-08 · `POST /api/v1/matriculas` responde **500** (no 201, no 409)
+
+**Dueño:** @dev · **Gravedad:** **Crítica** · **Criterios:** C-16 y C-17 (y de arrastre todo el recorrido
+E2E §3: sin matrícula no hay notas ni boleta).
+
+**Cómo lo encontré (y cómo lo reproduce cualquiera).** La API real ya arranca, así que la corrí:
+
+```
+# 1. base limpia desde db/init, en un contenedor aparte (puerto 55433, no toca el stack de @devops)
+docker run -d --name gs08-qa-api -e POSTGRES_USER=gs08 -e POSTGRES_PASSWORD=gs08_dev_pwd \
+  -e POSTGRES_DB=gs08_matriculas -p 55433:5432 \
+  -v "D:/dev/equipo/gs08-matriculas/db/init:/docker-entrypoint-initdb.d:ro" postgres:16.15-alpine3.24
+# 2. la API de @dev, sin Docker (venv con backend/requirements.txt)
+uv venv D:/dev/_tmp/qa-venv-api --python 3.11
+uv pip install -p D:/dev/_tmp/qa-venv-api/Scripts/python.exe -r backend/requirements.txt
+cd backend && DATABASE_URL="postgresql+psycopg://gs08:gs08_dev_pwd@localhost:55433/gs08_matriculas" \
+  SECRET_KEY="qa-clave-de-prueba" D:/dev/_tmp/qa-venv-api/Scripts/python.exe -m uvicorn app.main:app --port 8010
+# 3. el plan de pruebas completo contra la API real
+bash scripts/smoke_api.sh --solo-contrato --e2e --url http://localhost:8010
+```
+
+**Resultado:** `20 comprobaciones OK, 10 fallas`, y **las 10 fallas salen de estos dos bugs**.
+
+**Pasos mínimos para reproducir el 500**
+```
+curl -X POST http://localhost:8010/api/v1/auth/login -H 'Content-Type: application/json' \
+     -d '{"usuario":"admin","password":"Admin123!"}'          # -> 200 + token
+curl -X POST http://localhost:8010/api/v1/matriculas -H 'Content-Type: application/json' \
+     -H "Authorization: Bearer <token>" \
+     -d '{"estudiante_id":1,"curso_id":1,"periodo":"2026-02","fecha_matricula":"2026-08-01"}'
+```
+**Esperado:** `409` con el mensaje del legacy (ese par ya existe en el seed).
+**Obtenido:** **`500`** `{"detail":"Error interno del servidor (revisar el log del API)."}` — y también `500`
+al crear una matrícula **nueva** válida, así que no se puede matricular a nadie por la API.
+
+**Causa exacta (del log del API, no es una suposición):**
+```
+sqlalchemy.exc.ProgrammingError: (psycopg.errors.AmbiguousParameter) could not determine data type of parameter $4
+LINE 1: ...e_id = $1 AND curso_id = $2 AND periodo = $3 AND ($4 IS NULL...
+[SQL: SELECT id FROM matriculas WHERE estudiante_id = %(e)s AND curso_id = %(c)s AND periodo = %(p)s
+      AND (%(propia)s IS NULL OR id <> %(propia)s)]
+[parameters: {'e': 1, 'c': 1, 'p': '2026-02', 'propia': None}]
+  File ".../app/routers/matriculas.py", line 143, in crear
+    _verificar_duplicado(db, datos.estudiante_id, datos.curso_id, datos.periodo)
+  File ".../app/routers/matriculas.py", line 129, in _verificar_duplicado
+```
+El patrón `AND (:propio IS NULL OR id <> :propio)` con `propio=None` deja a PostgreSQL sin poder tipar el
+parámetro: ni el `IS NULL` ni el `<>` le dan tipo. **Falla solo en el INSERT** (en el `PUT` el valor llega).
+Arreglo: `CAST(:propio AS integer)` en las dos apariciones, o armar la condición en Python
+(`"" if propio is None else " AND id <> :propio"`).
+
+**Evidencia:** `docs/qa/evidencia/api-500-ambiguousparameter.txt` (tracebacks completos) y la corrida
+`docs/qa/evidencia/smoke-api-20260921-230607.txt`.
+
+---
+
+## BUG-09 · `POST /api/v1/usuarios` responde **500** (no 201)
+
+**Dueño:** @dev · **Gravedad:** **Crítica** · **Criterios:** C-22 (parte del 409) y C-23 (el 403 por rol: sin
+poder crear un `asistente` no hay forma de probarlo).
+
+**Es el mismo defecto en otro archivo** — mismo patrón, mismo SQLSTATE:
+```
+sqlalchemy.exc.ProgrammingError: (psycopg.errors.AmbiguousParameter) could not determine data type of parameter $3
+[SQL: SELECT id, nombre_usuario, email FROM usuarios WHERE (nombre_usuario = %(nombre_usuario)s
+      OR lower(email) = lower(%(email)s)) AND (%(propio)s IS NULL OR id <> %(propio)s)]
+[parameters: {'nombre_usuario': 'qa_asistente', 'email': 'qa_asistente@horizonte.edu.pe', 'propio': None}]
+```
+**Reproducir:** `POST /api/v1/usuarios` con los datos del SM-26 (`qa_asistente`, rol `asistente`) → `500`.
+
+**Lo que sí funciona en ese endpoint** (probado a mano, para acotar el arreglo): clave de 7 caracteres →
+`422` («RN-01»), rol `docente` → `422`, y `DELETE /api/v1/usuarios/1` (la propia cuenta) → **`409`**
+«No puedes desactivar ni eliminar tu propia cuenta (RN-11)» ✔. Lo único roto es el camino que pasa por la
+verificación de duplicados.
+
+**Evidencia:** la misma que BUG-08 (`api-500-ambiguousparameter.txt`, parte 2).
+
+---
+
+## Lo que la API real ya cumple (verificado por mí, 21/09)
+
+Además de lo que cubre el smoke, probé a mano lo que el script no alcanzaba:
+
+| Criterio | Prueba | Resultado |
+|---|---|---|
+| C-11 | DNI repetido, código repetido, email inválido | **422** los tres, con el campo en el mensaje |
+| C-13 | `horas=0`; curso **sin** `creditos` | **422**; y guardó **3** (default del legacy) |
+| C-14 | código de curso repetido | **409** |
+| C-04 | `DELETE` de la propia cuenta | **409** (RN-11) |
+| C-24, C-25 | nota 14 → **201**; la misma otra vez → **409**; `nota=21` → **422** | OK |
+| C-26 | nota sobre la matrícula 13 (retirada) | **409** «No se registran notas de una matrícula retirada (RN-14)» |
+| C-27 | boleta del estudiante 1 | C101 **16.00**; promedio ponderado **13.43** = (16×4 + 10×3) ÷ 7 ✔ |
+| C-28 | boleta del estudiante 3 (cursos sin notas) | `nota: null`, `promedio: null`, `creditos_con_notas: 0` |
+| C-08 | `q=huaman` / `q=Huamán` (%C3%A1) / `q=HUAMAN` | **1 / 1 / 1** — el `unaccent` funciona |
+| — | base de pruebas al terminar | **0 notas / 12 / 7 / 24**: la dejé como el seed |
+
+**OBS-01 cerrada de paso:** la API devuelve `nota: 16.0` **y** `nota_texto: "16.00"`, así que los dos
+decimales del criterio C-27 existen como dato, además del valor numérico. Nada que reclamar.
 
 ---
 

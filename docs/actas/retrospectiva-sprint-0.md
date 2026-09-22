@@ -15,6 +15,7 @@ principal del sprint.
 3. [Hallazgos y correcciones: evidencia → acción](#3-hallazgos-y-correcciones-evidencia--acción)
 4. [Acciones con dueño, al cierre](#4-acciones-con-dueño-al-cierre)
 5. [Lecciones que se llevan al Sprint 1](#5-lecciones-que-se-llevan-al-sprint-1)
+6. [Reparto por integrante y por bloque (D-23)](#6-reparto-por-integrante-y-por-bloque-d-23)
 
 ---
 
@@ -157,6 +158,25 @@ sino el método: ahora cada criterio tiene un ID y el conteo se hace por ID, no 
 6. **Lo bloqueado se escribe como bloqueado.** `C-33`/`C-34` figuran como *en arreglo* y `C-37` como
    *bloqueado por A-02*: un criterio «ok» sin salida real no se marca nunca, y así la tabla de cobertura
    dice la verdad aunque duela.
+
+---
+
+## 6. Reparto por integrante y por bloque (D-23)
+
+El entregable del curso lo firman los 3 integrantes y cada uno responde por su bloque. El reparto de las 10
+láminas y su documento fuente están en `docs/backlog-sprints.md` §«Entregable académico»; acá queda lo que
+toca a esta retrospectiva: **qué aprendizajes le corresponden a cada bloque**.
+
+| Integrante | Bloque que documenta | Qué se lleva de esta retrospectiva |
+|---|---|---|
+| **Arteaga Rullier, Roberto** (Scrum Master + DevOps · `@pm` + `@devops`) | alcance, backlog, decisiones, contenedores, CI, Kubernetes, observabilidad | **§2 (las 4 correcciones de documentos: BUG-02/03/04 y el conteo 35→39)** y **§3.1 (los 6 hallazgos de infraestructura: round-robin con `zone`, `max_fails`, el gauge inexistente, el job de nginx, nginx como root, `--dry-run`)**, más el bloqueo de Kubernetes y del push |
+| **Díaz Cárdenas, Jorge Luis** (Backend · `@dev`) | modelo de datos, reglas de negocio, API, pruebas de API | **§3.2 (los 3 hallazgos medidos: `LIKE`→`ILIKE`, el `$2y$` de pgcrypto, los `id` con huecos)** y las acciones 4, 7 y 8 de §4 (BUG-07 con @analista, T1.1-T1.4, `04-notas.sql`) |
+| **Inocencio Gargate, Dalcir** (Frontend + Documentador · `@dev` SPA + `@documentador`) | SPA/UX, manual de usuario, actas, informe y PPTX | **§3.3 (los 7 bugs y los 4 bugs del propio arnés de pruebas)** — la lección «un verificador se valida con defectos plantados» — y las acciones 9 y 10 de §4 (documentación de entrega, minikube) |
+
+**Lección transversal del sprint, la misma para los tres:** *lo que no tiene salida real pegada no está
+hecho*. Los 39 criterios con ID, los 7 bugs con su evidencia y los 20 ítems que quedaron **fuera** de alcance
+son el material con el que se sustenta el proyecto: lo que no se pudo probar se declara como bloqueado, no se
+omite.
 
 ---
 

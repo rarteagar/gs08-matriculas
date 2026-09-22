@@ -1,0 +1,12 @@
+========================================================================
+OK    nginx /healthz: HTTP 200 -> 'ok'
+OK    SPA en /: HTTP 200, 371 bytes
+OK    /health API directa: HTTP 200 -> {"status":"ok","motor":"PostgreSQL 16.15","instancia":"330d25e26778","entorno":"local"}
+OK    /health via nginx: HTTP 200 -> {"status":"ok","motor":"PostgreSQL 16.15","instancia":"7804eaf43d13","entorno":"local"}
+OK    /metrics: expone http_requests_total
+OK    balanceo nginx: reparto entre 2 instancias: {'172.18.0.3:8000': 6, '172.18.0.4:8000': 6}
+OK    targets Prometheus: 3 targets, caidos: ninguno
+OK    dashboard provisionado: HTTP 200 en http://localhost:3000/d/gs08-matriculas
+FALLA paneles Grafana con datos: 9 paneles revisados, sin datos: ['3. Tasa de errores 5xx (%)', '7. Respuestas por codigo de estado (2xx / 4xx / 5xx)']
+========================================================================
+8 comprobaciones OK, 1 fallas

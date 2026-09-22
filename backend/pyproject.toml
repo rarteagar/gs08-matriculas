@@ -1,0 +1,22 @@
+# ============================================================
+# GS08 · Matrículas y Notas | backend — configuración de lint y pruebas
+# Autor: @dev | T1.1 | Sprint 1
+# El CI corre `ruff check .`, `ruff format --check .` y `pytest -q` desde backend/.
+# ============================================================
+[tool.ruff]
+line-length = 132
+target-version = "py312"
+extend-exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "UP", "B", "C4", "SIM"]
+# B008: FastAPI se apoya en Depends()/Query()/Header() como valor por defecto.
+ignore = ["B008"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+filterwarnings = ["ignore::DeprecationWarning"]

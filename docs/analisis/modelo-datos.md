@@ -278,6 +278,10 @@ cascadas de C-29 y las comprobaciones dentro de transacciones revertidas.
 | `docs/analisis/evidencia/diagnostico-hash-legacy.txt` | el quirk de pgcrypto + lista de contraseñas candidatas |
 | `docs/analisis/evidencia/hash-legacy-python-bcrypt.txt` | el hash verificado con `bcrypt==4.2.1` (PyPI), la librería del API |
 | `docs/analisis/evidencia/busqueda-rendimiento.txt` | EXPLAIN ANALYZE con 100.000 filas |
+| `docs/analisis/evidencia/resumen-d14.txt` | la comparación `db/init/` vs Alembic completa, exit 0 |
+| `docs/analisis/evidencia/catalogo-dbinit.txt` · `catalogo-alembic.txt` | las dos fotos del catálogo (170 líneas cada una) |
+| `docs/analisis/evidencia/catalogo-diff.txt` | **vacío**: es la prueba de que son idénticas |
+| `docs/analisis/evidencia/d14-downgrade.txt` | el `downgrade base` deja solo `alembic_version` |
 
 ### Consulta de verificación de cada script (lo que se corre para saber si quedó bien)
 
@@ -413,7 +417,7 @@ fijado como comprobación, para que quede claro que se está usando el ponderado
 |---|---|---|
 | `db/init/README.md` (contrato de @devops) | Cumplido: `01-schema.sql`, `02-view.sql`, `03-seed.sql` en su sitio, en el orden alfabético que espera el entrypoint; se sumó **`04-notas.sql`** (aditivo, D-01) | sugiero dos filas nuevas en ese README: `04-notas.sql` y un puntero a `db/verificacion/` |
 | Stack en marcha de @devops | **Cero impacto**: la verificación usa otro contenedor (`gs08-analista-verif`) y otro puerto (55432). Ojo: `04-notas.sql` **no** aparece en un volumen `pgdata` ya creado (los scripts de `db/init/` corren una sola vez): hay que `docker compose down -v && up` o aplicar la migración | avisar a @dev y @qa de lo que significa `down -v` (borra datos) |
-| Alembic (Job `gs08-migraciones` del cluster) | **D-14**: hay que **unificar**. Además de las 5 tablas y las 2 vistas, la revisión inicial debe incluir `op.execute("CREATE EXTENSION IF NOT EXISTS unaccent")` (BUG-07/C-08) y el trigger `tr_notas_matricula_activa` (RN-14) | @dev genera la revisión inicial desde `db/init/`; @analista compara ambos DDL (T3.4) |
+| Alembic (Job `gs08-migraciones` del cluster) | **D-14 verificada**: `backend/alembic/versions/0001_esquema_inicial.py` (generada desde `db/init/`) deja el **mismo** esquema y los mismos datos: catálogo de 170 líneas idéntico, 0 diferencias, y las 5 secuencias en 1/12/7/24 (incluye `unaccent`, el trigger de RN-14, las 2 vistas, los 18 comentarios y el seed) | nada pendiente del lado de datos; el detalle y cómo re-correrlo están en `docs/analisis/verificacion-d14-alembic.md` |
 | API de @dev | Los nombres de tabla/columna en español se mantienen (el contrato de nginx ya usa `/api/v1/estudiantes`), así que el mapeo es directo. Nuevo: `notas` (8 columnas) y `v_notas_detalle` | nada |
 | Pantallas del SPA | `estado` pasa de 1/0 a `true`/`false`; `creado_en` pasa a ISO-8601 con zona; las notas nacen ya con JSON (`numeric` → string o número según el serializador: **@dev, decidí y anotá cuál**, porque `16.00` vs `16.0` ya rompió un test de @qa en el Sprint 0) | avisado a @dev y @qa |
 | El sistema legacy | Sigue funcionando en su MySQL; no se toca ni se borra | nada |
@@ -431,8 +435,10 @@ fijado como comprobación, para que quede claro que se está usando el ponderado
 
 **Decisiones que necesito de otros:**
 - **@dev:** (a) el hash `$2y$` verificado con tu librería — ya lo probé con `bcrypt` 4.2.1 y da `True`,
-  pero quiero el test en `backend/tests/` (C-38); (b) la revisión inicial de Alembic generada desde
-  `db/init/` **incluyendo** `CREATE EXTENSION unaccent` y el trigger de RN-14 (D-14); (c) el buscador con
+  pero quiero el test en `backend/tests/` (C-38); (b) ~~la revisión inicial de Alembic~~ **✅ verificada**:
+  `0001_esquema_inicial` deja el mismo esquema que `db/init/` (170 líneas de catálogo, 0 diferencias,
+  `docs/analisis/verificacion-d14-alembic.md`) — solo te queda **repetir la comparación si tocás la
+  migración o `db/init/`** (`bash db/verificacion/comparar_con_alembic.sh`); (c) el buscador con
   `ILIKE` + `unaccent`, nunca `LIKE`; (d) decidir cómo serializa `numeric(4,2)` en JSON y dejarlo fijado.
 - **@qa:** las 5 reglas nuevas (RN-14/15/16) ya tienen prueba negativa en la base; falta la prueba **en la
   API** (`nota=21 → 422`, duplicado `→ 409`, matrícula retirada `→ 409`) — es la mitad que T3.4 me toca
@@ -455,7 +461,10 @@ db/verificacion/diagnostico_hash_legacy.sql    pgcrypto vs prefijos $2y$/$2a$ + 
 db/verificacion/prueba_hash_python.py          el hash verificado con bcrypt (PyPI)
 db/verificacion/prueba_busqueda_rendimiento.sql 100.000 filas: LIKE vs ILIKE vs trigram
 db/verificacion/ejecutar_verificacion.sh       corre todo contra un PostgreSQL desechable (exit 0)
+db/verificacion/catalogo_esquema.sql           foto del esquema + datos, para comparar dos bases
+db/verificacion/comparar_con_alembic.sh        D-14: db/init/ vs alembic upgrade head (exit 0 = iguales)
 docs/analisis/modelo-datos.md                  este documento
 docs/analisis/datos-seed.md                    los números del seed y los ejemplos que pueden citarse
-docs/analisis/evidencia/*.txt                  8 archivos con la salida real
+docs/analisis/verificacion-d14-alembic.md      el informe de la comparación D-14 (170 líneas, 0 diferencias)
+docs/analisis/evidencia/*.txt                  13 archivos con la salida real
 ```

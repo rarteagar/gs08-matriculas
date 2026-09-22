@@ -1,0 +1,35 @@
+===== GS08 smoke_api.sh  2026-09-21 23:28:53 =====
+base=http://localhost:8000 api_directa=http://localhost:8000 modo=contrato escritura=1 e2e=1
+
+OK    SM-09 [C-01] login con usuario -> esperado HTTP 200 + token, obtenido HTTP 200, token=eyJhbGciOiJI...
+OK    SM-10 [C-01] login por email del seed (admin@horizonte.edu.pe) -> esperado HTTP 200, obtenido HTTP 200, {"access_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwidXN1YXJpbyI6ImFkbWluIiwicm9sIjoiYWRtaW4iLCJpYXQiOjE3OTAwNTEzMjQsImV4cCI6MTc5MDA1NDkyNH0.r7tOwFVDFqkqlSYC4IntbAFrxcJwgk9ZGu_KTCpU7Is","token_type":"bearer","expira_en":"2026-09-22T05:28:44.586603Z","expira_en_minutos":60,"usuario":{"id":1,"nombre_usuario":"admin","email":"admin@horizonte.edu.pe","nombre_completo":"AdministradordelSistema","rol":"admin","estado":true,"creado_en":"2026-09-21T23:27:13.319138-05:00"}}
+OK    SM-11 [C-01] clave equivocada no emite token -> esperado HTTP 401, obtenido HTTP 401, {"detail":"Usuarioocontraseñaincorrectos."}
+OK    SM-12 [C-01] sin token no se lee el listado -> esperado HTTP 401, obtenido HTTP 401
+OK    SM-13 [C-01] token falsificado no sirve -> esperado HTTP 401, obtenido HTTP 401
+OK    SM-14 [C-05] KPIs del seed 12/7/23/1 -> esperado 12 | 7 | 23 | 1, obtenido 12 | 7 | 23 | 1
+OK    SM-15 [C-08] buscador ILIKE + unaccent (mayusculas y tildes) -> esperado misma cantidad >=1 en los 3, obtenido huaman=1 Huam%C3%A1n=1 HUAMAN=1 
+OK    SM-16 [C-09] busqueda por codigo y por DNI -> esperado 1 y 1, obtenido codigo=1 dni=1
+OK    SM-17 [C-10] page_size fuera de rango -> esperado 422 y 422, obtenido 200 -> 422, 0 -> 422
+OK    SM-18 [C-10] listado paginado: 1 pagina completa + total -> esperado min(page_size,total) filas y total=12, obtenido filas=12 total=12 (esperadas 12)
+OK    SM-18b [C-10] ultima pagina parcial (page=3, page_size=5) -> esperado 2 filas y total=12, obtenido filas=2 total=12
+OK    SM-19 [C-11] DNI de 7 digitos -> esperado HTTP 422 (nunca 500), obtenido HTTP 422, {"detail":"dni:ElDNIdebetenerexactamente8dígitosnuméricos(ej.45123456).","errores":[{"campo":"dni","mensaje":"dni:ElDNIdebetenerexactamente8dígitosnuméricos(ej.45123456)."}]}
+OK    SM-20 [C-13] curso con creditos=11 -> esperado HTTP 422, obtenido HTTP 422, {"detail":"creditos:Loscréditosdebenestarentre1y10(regladellegacy,RN-02).","errores":[{"campo":"creditos","mensaje":"creditos:Loscréditosdebenestarentre1y10(regladellegacy,RN-02)."}]}
+OK    SM-21 [C-18] periodo 2026-13 -> esperado HTTP 422, obtenido HTTP 422, {"detail":"periodo:ElperiododebetenerelformatoAAAA-MMconmes01..12(ej.2026-02).","errores":[{"campo":"periodo","mensaje":"periodo:ElperiododebetenerelformatoAAAA-MMconmes01..12(ej.2026-02)."}]}
+OK    SM-22 [C-17] matricula duplicada (est 1 + curso 1 + 2026-02) -> esperado HTTP 409 con el mensaje del legacy, obtenido HTTP 409, {"detail":"Eseestudianteyaestámatriculadoenesecursoparaelperiodoindicado"}
+OK    SM-23 [C-19] matricula de estudiante inexistente -> esperado HTTP 404, obtenido HTTP 404, {"detail":"Noexisteelestudiante99999."}
+OK    SM-24 [C-16] listado de matriculas del periodo -> esperado HTTP 200 y total=24, obtenido HTTP 200, total=24
+OK    SM-25 [C-30] DELETE con matriculas no borra nada -> esperado 409 con matriculas=2 y el estudiante sigue (200), obtenido DELETE -> HTTP 409 {'matriculas':2}, GET -> HTTP 200
+OK    SM-26 [C-23] rol asistente no entra a /usuarios -> esperado HTTP 403, obtenido HTTP 403, {"detail":"Estaoperaciónessoloparaelroladmin."}
+OK    SM-27 [C-19] estudiante inexistente -> esperado HTTP 404, obtenido HTTP 404
+OK    E2E-01 [paso 4 - C-11] alta de estudiante -> esperado HTTP 201 + id, obtenido HTTP 201, id=13
+OK    E2E-01 [paso 6 - C-16] matricula del estudiante nuevo -> esperado HTTP 201 + id, obtenido HTTP 201, id=25
+OK    E2E-01 [paso 6 - C-17] la segunda matricula igual da 409 -> esperado HTTP 409, obtenido HTTP 409, {"detail":"Eseestudianteyaestámatriculadoenesecursoparaelperiodoindicado"}
+OK    E2E-01 [paso 8 - C-24] nota practica=14 -> HTTP 201, {"id":1,"matricula_id":25,"tipo":"practica","numero":1,"nota":14.0,"nota_texto":"14.00","fecha_registro":"2026-09-21","observacion":null}
+OK    E2E-01 [paso 8 - C-24] nota parcial=16 -> HTTP 201, {"id":2,"matricula_id":25,"tipo":"parcial","numero":1,"nota":16.0,"nota_texto":"16.00","fecha_registro":"2026-09-21","observacion":null}
+OK    E2E-01 [paso 8 - C-24] nota final=18 -> HTTP 201, {"id":3,"matricula_id":25,"tipo":"final","numero":1,"nota":18.0,"nota_texto":"18.00","fecha_registro":"2026-09-21","observacion":null}
+OK    E2E-01 [paso 8 - C-25] nota duplicada -> esperado HTTP 409, obtenido HTTP 409
+OK    E2E-01 [paso 8 - C-25] nota 21 fuera de rango -> esperado HTTP 422, obtenido HTTP 422
+OK    E2E-01 [C-31] limpieza con ?confirmar=true -> esperado HTTP 204, obtenido HTTP 204
+FALLA E2E-01 [paso 9 - C-27] boleta: 14/16/18 -> 16 (media aritmetica) -> esperado nota del curso y promedio = 16, obtenido nota_curso= promedio=
+
+29 comprobaciones OK, 1 fallas, 0 bloqueadas

@@ -1,0 +1,9 @@
+# ============================================================
+# GS08 - Matriculas y Notas | API FastAPI - dependencias de desarrollo
+# Autor: @dev | T1.1 | Sprint 1
+# httpx: lo necesita fastapi.testclient (TestClient) para las pruebas de API.
+# ============================================================
+ruff==0.14.4
+pytest==8.4.2
+pytest-cov==7.0.0
+httpx==0.28.1

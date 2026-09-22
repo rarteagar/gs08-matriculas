@@ -1,0 +1,170 @@
+EXTENSION unaccent v1.1
+TABLA cursos
+TABLA estudiantes
+TABLA matriculas
+TABLA notas
+TABLA usuarios
+COLUMNA cursos.codigo character varying(20) NOT NULL DEFAULT -
+COLUMNA cursos.creado_en timestamp with time zone NOT NULL DEFAULT now()
+COLUMNA cursos.creditos smallint NOT NULL DEFAULT 3
+COLUMNA cursos.descripcion text NULL DEFAULT -
+COLUMNA cursos.estado boolean NOT NULL DEFAULT true
+COLUMNA cursos.horas smallint NOT NULL DEFAULT 48
+COLUMNA cursos.id integer NOT NULL DEFAULT -
+COLUMNA cursos.nombre character varying(100) NOT NULL DEFAULT -
+COLUMNA estudiantes.apellidos character varying(80) NOT NULL DEFAULT -
+COLUMNA estudiantes.codigo character varying(20) NOT NULL DEFAULT -
+COLUMNA estudiantes.creado_en timestamp with time zone NOT NULL DEFAULT now()
+COLUMNA estudiantes.direccion character varying(150) NULL DEFAULT -
+COLUMNA estudiantes.dni character(8) NOT NULL DEFAULT -
+COLUMNA estudiantes.email character varying(100) NULL DEFAULT -
+COLUMNA estudiantes.estado boolean NOT NULL DEFAULT true
+COLUMNA estudiantes.fecha_nacimiento date NULL DEFAULT -
+COLUMNA estudiantes.id integer NOT NULL DEFAULT -
+COLUMNA estudiantes.nombres character varying(80) NOT NULL DEFAULT -
+COLUMNA estudiantes.telefono character varying(20) NULL DEFAULT -
+COLUMNA matriculas.creado_en timestamp with time zone NOT NULL DEFAULT now()
+COLUMNA matriculas.curso_id integer NOT NULL DEFAULT -
+COLUMNA matriculas.estado character varying(15) NOT NULL DEFAULT 'activa'::character varying
+COLUMNA matriculas.estudiante_id integer NOT NULL DEFAULT -
+COLUMNA matriculas.fecha_matricula date NOT NULL DEFAULT -
+COLUMNA matriculas.id integer NOT NULL DEFAULT -
+COLUMNA matriculas.periodo character varying(7) NOT NULL DEFAULT -
+COLUMNA notas.creado_en timestamp with time zone NOT NULL DEFAULT now()
+COLUMNA notas.fecha_registro date NOT NULL DEFAULT CURRENT_DATE
+COLUMNA notas.id integer NOT NULL DEFAULT -
+COLUMNA notas.matricula_id integer NOT NULL DEFAULT -
+COLUMNA notas.nota numeric(4,2) NOT NULL DEFAULT -
+COLUMNA notas.numero smallint NOT NULL DEFAULT 1
+COLUMNA notas.observacion character varying(200) NULL DEFAULT -
+COLUMNA notas.tipo character varying(15) NOT NULL DEFAULT -
+COLUMNA usuarios.creado_en timestamp with time zone NOT NULL DEFAULT now()
+COLUMNA usuarios.email character varying(100) NOT NULL DEFAULT -
+COLUMNA usuarios.estado boolean NOT NULL DEFAULT true
+COLUMNA usuarios.id integer NOT NULL DEFAULT -
+COLUMNA usuarios.nombre_completo character varying(100) NOT NULL DEFAULT -
+COLUMNA usuarios.nombre_usuario character varying(50) NOT NULL DEFAULT -
+COLUMNA usuarios.password_hash character varying(255) NOT NULL DEFAULT -
+COLUMNA usuarios.rol character varying(20) NOT NULL DEFAULT 'admin'::character varying
+COLUMNA v_matriculas_detalle.apellidos_estudiante character varying(80) NULL DEFAULT -
+COLUMNA v_matriculas_detalle.codigo_curso character varying(20) NULL DEFAULT -
+COLUMNA v_matriculas_detalle.codigo_estudiante character varying(20) NULL DEFAULT -
+COLUMNA v_matriculas_detalle.creditos smallint NULL DEFAULT -
+COLUMNA v_matriculas_detalle.curso character varying(100) NULL DEFAULT -
+COLUMNA v_matriculas_detalle.curso_id integer NULL DEFAULT -
+COLUMNA v_matriculas_detalle.dni character(8) NULL DEFAULT -
+COLUMNA v_matriculas_detalle.email_estudiante character varying(100) NULL DEFAULT -
+COLUMNA v_matriculas_detalle.estado_matricula character varying(15) NULL DEFAULT -
+COLUMNA v_matriculas_detalle.estudiante text NULL DEFAULT -
+COLUMNA v_matriculas_detalle.estudiante_id integer NULL DEFAULT -
+COLUMNA v_matriculas_detalle.fecha_matricula date NULL DEFAULT -
+COLUMNA v_matriculas_detalle.horas smallint NULL DEFAULT -
+COLUMNA v_matriculas_detalle.matricula_id integer NULL DEFAULT -
+COLUMNA v_matriculas_detalle.nombres_estudiante character varying(80) NULL DEFAULT -
+COLUMNA v_matriculas_detalle.periodo character varying(7) NULL DEFAULT -
+COLUMNA v_notas_detalle.codigo_curso character varying(20) NULL DEFAULT -
+COLUMNA v_notas_detalle.codigo_estudiante character varying(20) NULL DEFAULT -
+COLUMNA v_notas_detalle.creditos smallint NULL DEFAULT -
+COLUMNA v_notas_detalle.curso character varying(100) NULL DEFAULT -
+COLUMNA v_notas_detalle.curso_id integer NULL DEFAULT -
+COLUMNA v_notas_detalle.estado_matricula character varying(15) NULL DEFAULT -
+COLUMNA v_notas_detalle.estudiante text NULL DEFAULT -
+COLUMNA v_notas_detalle.estudiante_id integer NULL DEFAULT -
+COLUMNA v_notas_detalle.fecha_registro date NULL DEFAULT -
+COLUMNA v_notas_detalle.matricula_id integer NULL DEFAULT -
+COLUMNA v_notas_detalle.nota numeric(4,2) NULL DEFAULT -
+COLUMNA v_notas_detalle.nota_id integer NULL DEFAULT -
+COLUMNA v_notas_detalle.numero smallint NULL DEFAULT -
+COLUMNA v_notas_detalle.observacion character varying(200) NULL DEFAULT -
+COLUMNA v_notas_detalle.periodo character varying(7) NULL DEFAULT -
+COLUMNA v_notas_detalle.tipo character varying(15) NULL DEFAULT -
+CONSTRAINT cursos ck_cursos_codigo_no_vacio CHECK ((btrim((codigo)::text) <> ''::text))
+CONSTRAINT cursos ck_cursos_creditos CHECK (((creditos >= 1) AND (creditos <= 10)))
+CONSTRAINT cursos ck_cursos_horas CHECK (((horas >= 1) AND (horas <= 1000)))
+CONSTRAINT cursos ck_cursos_nombre_no_vacio CHECK ((btrim((nombre)::text) <> ''::text))
+CONSTRAINT cursos cursos_pkey PRIMARY KEY (id)
+CONSTRAINT cursos uq_cursos_codigo UNIQUE (codigo)
+CONSTRAINT estudiantes ck_estudiantes_apellidos_no_vacio CHECK ((btrim((apellidos)::text) <> ''::text))
+CONSTRAINT estudiantes ck_estudiantes_codigo_no_vacio CHECK ((btrim((codigo)::text) <> ''::text))
+CONSTRAINT estudiantes ck_estudiantes_dni CHECK ((dni ~ '^[0-9]{8}$'::text))
+CONSTRAINT estudiantes ck_estudiantes_email CHECK (((email IS NULL) OR ((email)::text ~ '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'::text)))
+CONSTRAINT estudiantes ck_estudiantes_fecha_nacimiento CHECK (((fecha_nacimiento IS NULL) OR (fecha_nacimiento > '1900-01-01'::date)))
+CONSTRAINT estudiantes ck_estudiantes_nombres_no_vacio CHECK ((btrim((nombres)::text) <> ''::text))
+CONSTRAINT estudiantes estudiantes_pkey PRIMARY KEY (id)
+CONSTRAINT estudiantes uq_estudiantes_codigo UNIQUE (codigo)
+CONSTRAINT estudiantes uq_estudiantes_dni UNIQUE (dni)
+CONSTRAINT matriculas ck_matriculas_estado CHECK (((estado)::text = ANY ((ARRAY['activa'::character varying, 'retirado'::character varying])::text[])))
+CONSTRAINT matriculas ck_matriculas_periodo CHECK (((periodo)::text ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'::text))
+CONSTRAINT matriculas fk_matriculas_curso FOREIGN KEY (curso_id) REFERENCES cursos(id) ON UPDATE CASCADE ON DELETE CASCADE
+CONSTRAINT matriculas fk_matriculas_estudiante FOREIGN KEY (estudiante_id) REFERENCES estudiantes(id) ON UPDATE CASCADE ON DELETE CASCADE
+CONSTRAINT matriculas matriculas_pkey PRIMARY KEY (id)
+CONSTRAINT matriculas uq_matriculas_estudiante_curso_periodo UNIQUE (estudiante_id, curso_id, periodo)
+CONSTRAINT notas ck_notas_nota CHECK (((nota >= (0)::numeric) AND (nota <= (20)::numeric)))
+CONSTRAINT notas ck_notas_numero CHECK ((numero >= 1))
+CONSTRAINT notas ck_notas_tipo CHECK (((tipo)::text = ANY ((ARRAY['practica'::character varying, 'parcial'::character varying, 'final'::character varying])::text[])))
+CONSTRAINT notas fk_notas_matricula FOREIGN KEY (matricula_id) REFERENCES matriculas(id) ON UPDATE CASCADE ON DELETE CASCADE
+CONSTRAINT notas notas_pkey PRIMARY KEY (id)
+CONSTRAINT notas uq_notas_matricula_tipo_numero UNIQUE (matricula_id, tipo, numero)
+CONSTRAINT usuarios ck_usuarios_email_formato CHECK (((email)::text ~ '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'::text))
+CONSTRAINT usuarios ck_usuarios_nombre_no_vacio CHECK ((btrim((nombre_completo)::text) <> ''::text))
+CONSTRAINT usuarios ck_usuarios_rol CHECK (((rol)::text = ANY ((ARRAY['admin'::character varying, 'asistente'::character varying])::text[])))
+CONSTRAINT usuarios ck_usuarios_usuario_formato CHECK (((nombre_usuario)::text ~ '^[A-Za-z0-9_.]{3,50}$'::text))
+CONSTRAINT usuarios uq_usuarios_email UNIQUE (email)
+CONSTRAINT usuarios uq_usuarios_nombre_usuario UNIQUE (nombre_usuario)
+CONSTRAINT usuarios usuarios_pkey PRIMARY KEY (id)
+INDICE CREATE INDEX idx_estudiantes_apellidos ON public.estudiantes USING btree (apellidos)
+INDICE CREATE INDEX idx_estudiantes_nombres ON public.estudiantes USING btree (nombres)
+INDICE CREATE INDEX idx_matriculas_curso ON public.matriculas USING btree (curso_id)
+INDICE CREATE INDEX idx_matriculas_estudiante ON public.matriculas USING btree (estudiante_id)
+INDICE CREATE INDEX idx_matriculas_fecha ON public.matriculas USING btree (fecha_matricula DESC, id DESC)
+INDICE CREATE INDEX idx_matriculas_periodo ON public.matriculas USING btree (periodo)
+INDICE CREATE INDEX idx_notas_matricula ON public.notas USING btree (matricula_id)
+INDICE CREATE INDEX idx_notas_orden ON public.notas USING btree (matricula_id, tipo, numero)
+INDICE CREATE UNIQUE INDEX cursos_pkey ON public.cursos USING btree (id)
+INDICE CREATE UNIQUE INDEX estudiantes_pkey ON public.estudiantes USING btree (id)
+INDICE CREATE UNIQUE INDEX matriculas_pkey ON public.matriculas USING btree (id)
+INDICE CREATE UNIQUE INDEX notas_pkey ON public.notas USING btree (id)
+INDICE CREATE UNIQUE INDEX uq_cursos_codigo ON public.cursos USING btree (codigo)
+INDICE CREATE UNIQUE INDEX uq_estudiantes_codigo ON public.estudiantes USING btree (codigo)
+INDICE CREATE UNIQUE INDEX uq_estudiantes_dni ON public.estudiantes USING btree (dni)
+INDICE CREATE UNIQUE INDEX uq_matriculas_estudiante_curso_periodo ON public.matriculas USING btree (estudiante_id, curso_id, periodo)
+INDICE CREATE UNIQUE INDEX uq_notas_matricula_tipo_numero ON public.notas USING btree (matricula_id, tipo, numero)
+INDICE CREATE UNIQUE INDEX uq_usuarios_email ON public.usuarios USING btree (email)
+INDICE CREATE UNIQUE INDEX uq_usuarios_nombre_usuario ON public.usuarios USING btree (nombre_usuario)
+INDICE CREATE UNIQUE INDEX usuarios_pkey ON public.usuarios USING btree (id)
+VISTA v_matriculas_detalle
+VISTA v_notas_detalle
+FUNCION fn_notas_matricula_activa() md5=c793d49cb367eec4a93a27957cc1075f
+FUNCION unaccent(regdictionary, text) md5=26018d65d186aaf6b4c5c0c20984ff03
+FUNCION unaccent(text) md5=26018d65d186aaf6b4c5c0c20984ff03
+FUNCION unaccent_init(internal) md5=c6e36297e2acf527f1d99c82244c9033
+FUNCION unaccent_lexize(internal, internal, internal, internal) md5=a2c719ce86175b3b995e7e18bf5edd89
+TRIGGER CREATE TRIGGER tr_notas_matricula_activa BEFORE INSERT ON public.notas FOR EACH ROW EXECUTE FUNCTION fn_notas_matricula_activa()
+SECUENCIA cursos_id_seq
+SECUENCIA estudiantes_id_seq
+SECUENCIA matriculas_id_seq
+SECUENCIA notas_id_seq
+SECUENCIA usuarios_id_seq
+DATOS cursos=7
+DATOS estudiantes=12
+DATOS matriculas=24
+DATOS notas=0
+DATOS usuarios=1
+COMENTARIO cursos -
+COMENTARIO estudiantes -
+COMENTARIO matriculas Matriculas: un estudiante en un curso, en un periodo (RN-08)
+COMENTARIO notas Notas de una matricula. Nota vigesimal 0..20 (RN-16). Al borrar la matricula se borran (cascada, C-29)
+COMENTARIO usuarios Usuarios del sistema administrativo (login del panel)
+COMENTARIO v_matriculas_detalle Matriculas con datos del estudiante y del curso. Origen: legacy v_matriculas_detalle + columnas apellidos/nombres/email/horas para que el SPA ordene sin volver a consultar.
+COMENTARIO v_notas_detalle Notas con matricula, estudiante, curso y periodo. Base de la boleta (C-28) y de los promedios de RN-15.
+COMENTARIO cursos.creditos 1..10 (regla del legacy cursos/create.php)
+COMENTARIO cursos.horas horas lectivas del curso, entero positivo
+COMENTARIO estudiantes.dni 8 digitos, unico (RN-04)
+COMENTARIO estudiantes.estado true=activo (aparece en selectores), false=inactivo (baja logica)
+COMENTARIO matriculas.estado activa | retirado (baja logica de la matricula, RN-07)
+COMENTARIO matriculas.periodo AAAA-MM, ej. 2026-02 (RN-06)
+COMENTARIO notas.nota 0.00 a 20.00, dos decimales (numeric(4,2) redondea lo que llegue con mas)
+COMENTARIO notas.numero numero de la evaluacion dentro del tipo, desde 1
+COMENTARIO notas.tipo practica | parcial | final (RN-16)
+COMENTARIO usuarios.estado true=activo, false=inactivo (no se puede desactivar el propio usuario)
+COMENTARIO usuarios.rol admin | asistente

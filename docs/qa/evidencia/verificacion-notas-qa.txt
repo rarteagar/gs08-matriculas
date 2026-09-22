@@ -1,0 +1,47 @@
+Pager usage is off.
+Timing is off.
+BEGIN
+ seccion | tabla | vista | trigger_rn14 | uniques | checks 
+---------+-------+-------+--------------+---------+--------
+ objetos |     1 |     1 |            1 |       1 |      3
+(1 row)
+
+psql:<stdin>:72: NOTICE:  OK    >> nota 21 rechazada (SQLSTATE 23514)
+psql:<stdin>:72: NOTICE:  OK    >> nota -1 rechazada (SQLSTATE 23514)
+psql:<stdin>:72: NOTICE:  OK    >> tipo examen rechazado (SQLSTATE 23514)
+psql:<stdin>:72: NOTICE:  OK    >> numero 0 rechazado (SQLSTATE 23514)
+psql:<stdin>:72: NOTICE:  OK    >> nota sobre matricula retirada rechazada (SQLSTATE 23514)
+psql:<stdin>:72: NOTICE:  OK    >> duplicado rechazado (SQLSTATE 23505)
+psql:<stdin>:72: NOTICE:  pruebas negativas: OK=6 fallas=0
+DO
+INSERT 0 3
+              seccion              | curso_id | codigo | creditos | nota_curso 
+-----------------------------------+----------+--------+----------+------------
+ nota del curso (media aritmetica) |        1 | C101   |        4 |      16.00
+ nota del curso (media aritmetica) |        2 | C102   |        3 |      10.00
+(2 rows)
+
+            seccion             | promedio | creditos_totales 
+--------------------------------+----------+------------------
+ promedio ponderado del periodo |    13.43 |                7
+(1 row)
+
+      seccion      | notas_de_la_matricula_1 
+-------------------+-------------------------
+ antes del borrado |                       3
+(1 row)
+
+SAVEPOINT
+DELETE 1
+       seccion       | notas_de_la_matricula_1 
+---------------------+-------------------------
+ despues del borrado |                       0
+(1 row)
+
+ROLLBACK
+             seccion             | notas 
+---------------------------------+-------
+ datos intactos tras el rollback |     4
+(1 row)
+
+ROLLBACK

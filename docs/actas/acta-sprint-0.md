@@ -36,6 +36,23 @@ archivo o el commit, y las salidas reales viven en los archivos de evidencia de 
 **Orden del día:** (1) cerrar el alcance y el reparto; (2) revisar la evidencia de cada entregable;
 (3) resolver los hallazgos de las pruebas; (4) declarar bloqueos y riesgos; (5) cerrar con acuerdos.
 
+### 1.1 Grupo del entregable académico (decisión D-23, datos dados por el dueño el 21/09/2026)
+
+El Sprint 0 se trabajó en la sala «Developer Team», que es el espacio de trabajo del grupo. El entregable del
+curso es **grupal**, en **español**, **con firma grupal**, y **cada integrante documenta y expone su bloque**.
+**Docente del curso: Dr. Jack Peralta.**
+
+| Integrante | Rol académico | Rol en la sala | Documenta | Expone |
+|---|---|---|---|---|
+| **Arteaga Rullier, Roberto** | Scrum Master + DevOps | @pm + @devops | alcance, backlog, decisiones, contenedores, CI, Kubernetes, observabilidad | láminas **1, 3, 7, 8, 10** |
+| **Díaz Cárdenas, Jorge Luis** | Backend | @dev | modelo de datos, reglas de negocio, API, pruebas de API | láminas **4, 5, 9** |
+| **Inocencio Gargate, Dalcir** | Frontend + Documentador | @dev (SPA) + @documentador | SPA/UX, manual de usuario, actas, informe y PPTX | láminas **2, 6** |
+
+**Asistencia al Sprint 0:** los **3 integrantes** participaron de la sesión de cierre del 21/09/2026, cada uno
+respondiendo por los bloques de su rol. La evidencia de cada bloque es la que está listada en §2 de esta acta
+(archivo o commit, no intención). El reparto de las **10 láminas** de la exposición y su respaldo documental
+están en `docs/backlog-sprints.md` §«Entregable académico».
+
 ---
 
 ## 2. Entregables del Sprint 0, con su evidencia
@@ -60,10 +77,13 @@ evidencia que se indica. Ninguna fila se marca por intención.
 **Salidas reales del Sprint 0** (los dos estándares que @pm fijó como referencia):
 
 ```
-$ bash db/verificacion/ejecutar_verificacion.sh
-verificar_modelo.sql      exit=0   comprobaciones OK=49   fallas=0
-verificar_hash_admin.sql  exit=0   comprobaciones OK=2
+$ docker exec -i gs08-analista-verif psql -q -U gs08 -d gs08_matriculas < db/verificacion/verificar_modelo.sql | grep -c 'NOTICE:  OK'
+54
+$ docker exec -i gs08-analista-verif psql -q -U gs08 -d gs08_matriculas < db/verificacion/verificar_notas.sql | grep -c 'NOTICE:  OK'
+32
+   (0 fallas y 0 errores en las dos corridas — @documentador, 21/09/2026)
 
+$ bash db/verificacion/ejecutar_verificacion.sh   # las tres de una: modelo + hash del admin + notas
 $ python scripts/verificar_stack.py
 9 comprobaciones OK, 0 fallas        (exit 0)
 
@@ -73,7 +93,7 @@ $ python scripts/validar_infra.py
 
 ---
 
-## 3. Decisiones tomadas (D-00…D-22)
+## 3. Decisiones tomadas (D-00…D-23)
 
 Registradas en **`docs/decisiones.md`** (ese archivo manda; acá va el índice para el acta). Todas cerradas
 salvo lo que se indica:
@@ -103,6 +123,7 @@ salvo lo que se indica:
 | **D-20** | La documentación vive en `docs/` (raíz) y `docs/decisiones.md` se **cita**, no se reescribe |
 | **D-21** | Ante discrepancia entre criterio y seed, **manda el seed** y se corrige el criterio |
 | **D-22** | El DOCX y el PPTX de entrega académica los **cierra el dueño**; @documentador entrega el borrador |
+| **D-23** | **Entregable académico:** grupo de **3 integrantes** (Arteaga Rullier Roberto · Scrum Master+DevOps, Díaz Cárdenas Jorge Luis · Backend, Inocencio Gargate Dalcir · Frontend+Documentador), informe y exposición **en español** con **firma grupal**, **10 láminas concisas** con una idea por lámina, docente **Dr. Jack Peralta**; cada integrante documenta y expone su bloque |
 
 ---
 
@@ -118,6 +139,10 @@ cosas en los tres frentes. El detalle completo, con la evidencia de cada uno, es
 | Modelo de datos (@analista) | `LIKE` → 0 filas; el `$2y$` no se valida con pgcrypto; los `id` con huecos | **3 documentados como decisión** (D-11, D-12, D-13) |
 | Pruebas (@qa) | **7 bugs**: `verificar_stack` no determinista (BUG-01), correo del criterio (BUG-02), DNI del criterio (BUG-03), 35 vs 39 (BUG-04), `/metrics` por el proxy (BUG-05), cabeceras en `/api/` (BUG-06), falta `unaccent` (BUG-07) | 3 cerrados por decisión, 3 asignados a TC-01/02/03, 1 nuevo (BUG-07) asignado a @dev + @analista |
 | Pruebas del propio @qa | **4 bugs en `smoke_api.sh`**, encontrados al validarlo contra una API falsa con 2 defectos plantados | **4 corregidos** (`docs/qa/plan-pruebas.md` §8) |
+
+> **Nota de alcance:** esta tabla es del **Sprint 0**. Los hallazgos de la **ronda 2**, ya con el API real
+> corriendo, están en `docs/qa/reporte-bugs.md` (BUG-08 y BUG-09: los dos `POST` que dan `500`) y no cambian
+> ninguna cifra de lo de arriba.
 
 ---
 

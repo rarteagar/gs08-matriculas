@@ -9,9 +9,11 @@ y cada uno dice de dónde. Los datos técnicos que lo respaldan están en `docs/
 §1 (modelo de datos).
 
 **Aviso de estado, para leer los diagramas:** lo que **existe y corre** hoy es la infraestructura (compose,
-PostgreSQL con el esquema del legacy, nginx balanceando 2 instancias, Prometheus/Grafana) y el **arnés de
-humo** con un stub de API/SPA. **El API real es T1.1 y el SPA es T2.4**; los diagramas de componentes y de
-flujo describen la arquitectura ya construida *alrededor* de ese código, no funcionalidad implementada.
+PostgreSQL con el esquema del legacy, nginx balanceando 2 instancias, Prometheus/Grafana) y el **API real**
+(28 endpoints publicados, probado contra una base limpia: 22 de los 39 criterios con corrida verde). **El SPA
+es T2.4** y el compose todavía sirve el **stub de humo** en `:8080` (retirarlo es T2.6), así que los diagramas
+de componentes y de flujo describen la arquitectura ya construida *alrededor* de ese código: el balanceo, el
+failover y la observabilidad son reales; el SPA del diagrama §1 es el que falta.
 
 ## Índice
 

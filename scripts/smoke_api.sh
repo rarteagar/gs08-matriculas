@@ -234,15 +234,16 @@ else
       "$([ "$E12" = 12 ] && [ "$E7" = 7 ] && [ "$M23" = 23 ] && [ "$U1" = 1 ] && echo ok || echo falla)"
 
     CUENTAS=""
-    for q in huaman Huamán HUAMAN; do
+    # OJO: los bytes UTF-8 crudos en la URL hacen que uvicorn responda 400
+    # ("Invalid HTTP request received"), asi que la tilde va percent-encoded (%C3%A1 = á).
+    for q in huaman Huam%C3%A1n HUAMAN; do
       peticion GET "/api/v1/estudiantes?q=$q" "" "$TOKEN"
       CUENTAS="$CUENTAS$q=$(json_numero total) "
     done
     N1="$(printf '%s' "$CUENTAS" | sed -n 's/.*huaman=\([0-9]*\).*/\1/p')"
-    N2="$(printf '%s' "$CUENTAS" | sed -n 's/.*Huamán=\([0-9]*\).*/\1/p')"
+    N2="$(printf '%s' "$CUENTAS" | sed -n 's/.*Huam%C3%A1n=\([0-9]*\).*/\1/p')"
     N3="$(printf '%s' "$CUENTAS" | sed -n 's/.*HUAMAN=\([0-9]*\).*/\1/p')"
-    # Nota para @dev (BUG-07): ILIKE ignora mayusculas pero NO tildes. Medido sobre el seed:
-    # q=huaman -> 0, q=Huamán -> 1, q=HUAMAN -> 0. Para que los tres coincidan hace falta
+    # Nota para @dev (BUG-07): ILIKE ignora mayusculas pero NO tildes; hace falta
     # unaccent(...) ILIKE unaccent(...) y la extension CREATE EXTENSION unaccent en db/init.
     comprobar "SM-15 [C-08] buscador ILIKE + unaccent (mayusculas y tildes)" "misma cantidad >=1 en los 3" "$CUENTAS" \
       "$([ "$N1" = "$N2" ] && [ "$N2" = "$N3" ] && [ "${N1:-0}" -ge 1 ] 2>/dev/null && echo ok || echo falla)"
@@ -259,8 +260,20 @@ else
 
     peticion GET "/api/v1/estudiantes?page=1&page_size=25" "" "$TOKEN"
     FILAS="$(contar '"codigo"')"; TOTAL="$(json_numero total)"
-    comprobar "SM-18 [C-10] listado paginado 25" "25 filas y total=12" "filas=$FILAS total=$TOTAL" \
-      "$([ "$FILAS" = 25 ] && [ "$TOTAL" = 12 ] && echo ok || echo falla)"
+    # Con 12 estudiantes en el seed, page_size=25 trae 12 (no 25): la pagina trae
+    # min(page_size, total). El criterio C-10 pide "25 filas + total" porque asume
+    # un volumen mayor; con el seed lo correcto es total=12 y la pagina completa.
+    ESPERADAS="$TOTAL"; [ "$ESPERADAS" -gt 25 ] 2>/dev/null && ESPERADAS=25
+    comprobar "SM-18 [C-10] listado paginado: 1 pagina completa + total" "min(page_size,total) filas y total=12" \
+      "filas=$FILAS total=$TOTAL (esperadas $ESPERADAS)" \
+      "$([ "$FILAS" = "$ESPERADAS" ] && [ "$TOTAL" = 12 ] && echo ok || echo falla)"
+
+    # segunda pagina con page_size=5: 12 estudiantes -> 5 + 5 + 2
+    peticion GET "/api/v1/estudiantes?page=3&page_size=5" "" "$TOKEN"
+    FILAS_P3="$(contar '"codigo"')"
+    comprobar "SM-18b [C-10] ultima pagina parcial (page=3, page_size=5)" "2 filas y total=12" \
+      "filas=$FILAS_P3 total=$(json_numero total)" \
+      "$([ "$FILAS_P3" = 2 ] && [ "$(json_numero total)" = 12 ] && echo ok || echo falla)"
 
     if [ "$ESCRITURA" = 1 ]; then
       peticion POST /api/v1/estudiantes \
@@ -315,14 +328,30 @@ else
 
     if [ "$ESCRITURA" = 1 ]; then
       # SM-26: rol asistente -> 403 en /api/v1/usuarios  (necesita un usuario asistente)
+      # IDEMPOTENCIA: si el usuario de prueba ya existe (409) se reusa y NO se borra; si lo
+      # creamos nosotros, se borra al final. Sin esto, la segunda corrida ve 2 usuarios
+      # activos y tumba SM-14 (C-05) por culpa del propio arnes, no de la API.
       peticion POST /api/v1/usuarios \
         '{"nombre_usuario":"qa_asistente","email":"qa_asistente@horizonte.edu.pe","password":"QaPrueba123!","nombre_completo":"QA Asistente","rol":"asistente"}' "$TOKEN"
-      if [ "$CODIGO" = 201 ] || [ "$CODIGO" = 409 ]; then
+      ID_ASIS=""; CREADO_POR_NOSOTROS=0
+      if [ "$CODIGO" = 201 ]; then
+        ID_ASIS="$(json_numero id)"; CREADO_POR_NOSOTROS=1
+      elif [ "$CODIGO" = 409 ]; then
+        peticion GET /api/v1/usuarios "" "$TOKEN"
+        ID_ASIS="$(json_numero id)"   # el listado no trae ids sueltos: se resuelve abajo
+      fi
+      if [ "$CODIGO" != "" ]; then
         peticion POST /api/v1/auth/login '{"usuario":"qa_asistente","password":"QaPrueba123!"}'
         TOKEN_ASIS="$(json_campo access_token)"
         peticion GET /api/v1/usuarios "" "$TOKEN_ASIS"
         comprobar "SM-26 [C-23] rol asistente no entra a /usuarios" "HTTP 403" "HTTP $CODIGO, $CUERPO" \
           "$([ "$CODIGO" = 403 ] && echo ok || echo falla)"
+        # limpieza: solo si lo creamos nosotros
+        if [ "$CREADO_POR_NOSOTROS" = 1 ] && [ -n "$ID_ASIS" ]; then
+          peticion DELETE "/api/v1/usuarios/$ID_ASIS?confirmar=true" "" "$TOKEN"
+          registrar "$([ "$CODIGO" = 204 ] && echo OK || echo FALLA)" \
+            "SM-26b limpieza del usuario de prueba" "DELETE /api/v1/usuarios/$ID_ASIS?confirmar=true -> HTTP $CODIGO"
+        fi
       else
         registrar FALLA "SM-26 [C-23] rol asistente no entra a /usuarios" \
           "no se pudo crear el asistente: HTTP $CODIGO $CUERPO"
@@ -379,14 +408,16 @@ else
         "$([ "$CODIGO" = 422 ] && echo ok || echo falla)"
 
       peticion GET "/api/v1/estudiantes/$ID_EST/boleta?periodo=2026-02" "" "$TOKEN"
-      PROMEDIO="$(printf '%s' "$CUERPO" | sed -n 's/.*"promedio":\([0-9.]*\).*/\1/p' | head -1)"
-      NOTA_CURSO="$(printf '%s' "$CUERPO" | sed -n 's/.*"nota_curso":\([0-9.]*\).*/\1/p' | head -1)"
-      # El JSON no distingue 16 de 16.00: se compara el VALOR (16.0 == 16 == 16.00) y
-      # los dos decimales se verifican en la pantalla de la boleta (N5, guion manual).
-      NOTA_OK="$(awk -v a="$NOTA_CURSO" 'BEGIN{exit !(a+0 == 16)}' && echo ok || echo falla)"
+      # Se lee del cuerpo COMPLETO ($TMP/compacto), no del recorte de 500 caracteres de $CUERPO.
+      # La API devuelve por curso `nota` + `nota_texto` y el promedio del periodo en `promedio`.
+      # No se puede buscar "nota" a ciegas: cada nota suelta tambien trae ese campo, por eso
+      # se comprueba `nota_texto` (que solo existe en la nota del curso) y `promedio`.
+      PROMEDIO="$(grep -o '"promedio":[0-9.]*' "$TMP/compacto" 2>/dev/null | head -1 | cut -d: -f2)"
+      NOTA_TXT="$(grep -o '"nota_texto":"[0-9.]*"' "$TMP/compacto" 2>/dev/null | head -1 | cut -d'"' -f4)"
+      NOTA_OK="$(awk -v a="$NOTA_TXT" 'BEGIN{exit !(a+0 == 16)}' && echo ok || echo falla)"
       PROM_OK="$(awk -v a="$PROMEDIO" 'BEGIN{exit !(a+0 == 16)}' && echo ok || echo falla)"
       comprobar "E2E-01 [paso 9 - C-27] boleta: 14/16/18 -> 16 (media aritmetica)" "nota del curso y promedio = 16" \
-        "nota_curso=$NOTA_CURSO promedio=$PROMEDIO" \
+        "nota_texto=$NOTA_TXT promedio=$PROMEDIO" \
         "$([ "$NOTA_OK" = ok ] && [ "$PROM_OK" = ok ] && echo ok || echo falla)"
 
       # limpieza: el borrado definitivo es la segunda llamada explicita (AP-08)
