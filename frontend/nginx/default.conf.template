@@ -1,0 +1,71 @@
+# ============================================================
+# GS08 - Matriculas | nginx: SPA Vue + proxy inverso / balanceador hacia la API
+# La directiva de abajo la genera el entrypoint de la imagen nginx (envsubst)
+# a partir de la variable de entorno API_UPSTREAM:
+#   local (compose): server api:8000; server api-b:8000;   -> round-robin entre 2 instancias
+#   k8s (ConfigMap): server gs08-api:8000;                 -> el balanceo lo hace el Service
+# ============================================================
+upstream gs08_api {
+    ${API_UPSTREAM}
+    # estado de balanceo compartido entre los workers de nginx: sin zone cada
+    # worker lleva su propio contador y el round-robin se vuelve desparejo
+    zone gs08_api 64k;
+    keepalive 16;
+}
+
+server {
+    # 8080 y no 80: el contenedor corre con el usuario nginx (sin privilegios)
+    listen 8080;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+    server_tokens off;
+
+    # ---- Compresion ----
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_types text/plain text/css application/javascript application/json image/svg+xml;
+
+    # ---- Cabeceras de seguridad ----
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    # ---- Healthcheck del contenedor ----
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    # ---- API: proxy inverso (x-upstream-addr muestra que instancia respondio) ----
+    location /api/ {
+        proxy_pass http://gs08_api;
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection        "";
+        proxy_connect_timeout 5s;
+        proxy_read_timeout    60s;
+        # Si una instancia no responde, la peticion se reintenta en la otra.
+        # Solo 'error timeout' (no se reintenta en 5xx para no repetir escrituras).
+        proxy_next_upstream error timeout;
+        proxy_next_upstream_tries 2;
+        add_header X-Upstream-Addr $upstream_addr always;
+    }
+
+    # ---- Assets con hash: cache larga ----
+    location /assets/ {
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+
+    # ---- SPA: cualquier ruta desconocida vuelve a index.html ----
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

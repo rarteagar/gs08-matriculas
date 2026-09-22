@@ -1,0 +1,77 @@
+# ============================================================
+# API FastAPI: 2 replicas + Service (el Ingress y nginx entran por aqui)
+# ============================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gs08-api
+  labels: { app: gs08-api, capa: backend }
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }   # cero caidas durante el despliegue
+  selector:
+    matchLabels: { app: gs08-api }
+  template:
+    metadata:
+      labels: { app: gs08-api, capa: backend }
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+      initContainers:
+        - name: esperar-bd
+          image: postgres:16.15-alpine3.24
+          command:
+            - sh
+            - -c
+            - until pg_isready -h gs08-db -p 5432 -U "$POSTGRES_USER"; do echo "esperando postgres..."; sleep 3; done
+          env:
+            - name: POSTGRES_USER
+              valueFrom: { configMapKeyRef: { name: gs08-config, key: POSTGRES_USER } }
+      containers:
+        - name: api
+          image: ghcr.io/cambiar-usuario/gs08-api:0.1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+              name: http
+          envFrom:
+            - configMapRef: { name: gs08-config }
+            - secretRef: { name: gs08-secrets }
+          startupProbe:
+            httpGet: { path: /health, port: http }
+            failureThreshold: 30
+            periodSeconds: 5
+          readinessProbe:
+            httpGet: { path: /health, port: http }
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet: { path: /health, port: http }
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits:   { cpu: "1", memory: 512Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false      # uvicorn necesita /tmp
+            capabilities: { drop: ["ALL"] }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gs08-api
+  labels: { app: gs08-api }
+spec:
+  type: ClusterIP
+  selector: { app: gs08-api }
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000

@@ -1,0 +1,37 @@
+# ============================================================
+# Job de migraciones (Alembic) - se ejecuta una vez por despliegue.
+# El DDL inicial del volumen local vive en db/init/; en el cluster manda Alembic.
+# ============================================================
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: gs08-migraciones
+  labels: { app: gs08-api, capa: migracion }
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels: { app: gs08-migraciones }
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: esperar-bd
+          image: postgres:16.15-alpine3.24
+          command:
+            - sh
+            - -c
+            - until pg_isready -h gs08-db -p 5432 -U "$POSTGRES_USER"; do echo "esperando postgres..."; sleep 3; done
+          env:
+            - name: POSTGRES_USER
+              valueFrom: { configMapKeyRef: { name: gs08-config, key: POSTGRES_USER } }
+      containers:
+        - name: alembic-upgrade
+          image: ghcr.io/cambiar-usuario/gs08-api:0.1.0
+          command: ["alembic", "upgrade", "head"]
+          envFrom:
+            - configMapRef: { name: gs08-config }
+            - secretRef: { name: gs08-secrets }
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits:   { cpu: 500m, memory: 512Mi }

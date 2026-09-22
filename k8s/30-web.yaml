@@ -1,0 +1,56 @@
+# ============================================================
+# Frontend Vue + nginx: 2 replicas + Service
+# nginx sirve los estaticos y hace de proxy inverso hacia el Service gs08-api
+# ============================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gs08-web
+  labels: { app: gs08-web, capa: frontend }
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  selector:
+    matchLabels: { app: gs08-web }
+  template:
+    metadata:
+      labels: { app: gs08-web, capa: frontend }
+    spec:
+      containers:
+        - name: web
+          image: ghcr.io/cambiar-usuario/gs08-web:0.1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            # Override del default de la imagen: apunta al Service del API
+            - name: API_UPSTREAM
+              valueFrom: { configMapKeyRef: { name: gs08-config, key: API_UPSTREAM } }
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 20
+            timeoutSeconds: 3
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits:   { cpu: 500m, memory: 256Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gs08-web
+  labels: { app: gs08-web }
+spec:
+  type: ClusterIP
+  selector: { app: gs08-web }
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080

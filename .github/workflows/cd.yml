@@ -1,0 +1,165 @@
+# ============================================================
+# GS08 - Matriculas | CD: publica imagenes en GHCR y despliega en k8s
+#
+# Se dispara cuando el workflow CI termina en verde sobre main,
+# o a mano desde la pestana Actions.
+#
+# Requisitos para que el despliegue funcione (hoy NO estan):
+#   * Secret  KUBE_CONFIG_B64  -> kubeconfig en base64 del cluster local
+#   * Variable DEPLOY_ENABLED  -> 'true' cuando el cluster este arriba
+# Si DEPLOY_ENABLED no existe, el job de despliegue se salta solo
+# y el pipeline queda verde publicando solo las imagenes.
+# ============================================================
+name: CD
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag a desplegar (por defecto el sha corto del commit)"
+        required: false
+        default: ""
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_API: ${{ github.repository }}-api
+  IMAGE_WEB: ${{ github.repository }}-web
+
+jobs:
+  # ---------------------------------------------------------
+  # 1. Construir y publicar las imagenes en GitHub Container Registry
+  # ---------------------------------------------------------
+  publicar:
+    name: Publicar imagenes en GHCR
+    runs-on: ubuntu-24.04
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: docker/setup-buildx-action@v4.4.1
+
+      - name: Iniciar sesion en GHCR
+        uses: docker/login-action@v4.6.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Calcular tag
+        id: meta
+        run: |
+          if [ -n "${{ github.event.inputs.tag }}" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+          else
+            TAG="$(git rev-parse --short HEAD)"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Tag a publicar: $TAG"
+
+      - name: Build y push del API
+        uses: docker/build-push-action@v7.4.0
+        with:
+          context: ./backend
+          target: runtime
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_API }}:${{ steps.meta.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_API }}:main
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+          provenance: true
+          sbom: true
+
+      - name: Build y push del frontend
+        uses: docker/build-push-action@v7.4.0
+        with:
+          context: ./frontend
+          target: runtime
+          push: true
+          build-args: VITE_API_BASE_URL=/api/v1
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_WEB }}:${{ steps.meta.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_WEB }}:main
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+          provenance: true
+          sbom: true
+
+      - name: Resumen de imagenes publicadas
+        run: |
+          {
+            echo "### Imagenes publicadas"
+            echo ""
+            echo "| Imagen | Tag |"
+            echo "|---|---|"
+            echo "| ${REGISTRY}/${IMAGE_API} | ${{ steps.meta.outputs.tag }} |"
+            echo "| ${REGISTRY}/${IMAGE_WEB} | ${{ steps.meta.outputs.tag }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------
+  # 2. Desplegar en el cluster local (k3s / minikube)
+  # ---------------------------------------------------------
+  desplegar:
+    name: Desplegar en Kubernetes
+    runs-on: ubuntu-24.04
+    needs: publicar
+    if: ${{ vars.DEPLOY_ENABLED == 'true' }}
+    environment: produccion
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Configurar kubectl con el kubeconfig del cluster
+        run: |
+          mkdir -p "$HOME/.kube"
+          echo "${{ secrets.KUBE_CONFIG_B64 }}" | base64 -d > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+          kubectl version --client
+          kubectl cluster-info
+
+      - name: Aplicar manifiestos
+        run: |
+          kubectl apply -k k8s/
+          kubectl -n gs08 set image deployment/gs08-api api=${{ env.REGISTRY }}/${{ env.IMAGE_API }}:${{ needs.publicar.outputs.tag }}
+          kubectl -n gs08 set image deployment/gs08-web web=${{ env.REGISTRY }}/${{ env.IMAGE_WEB }}:${{ needs.publicar.outputs.tag }}
+
+      - name: Esperar el despliegue
+        run: |
+          kubectl -n gs08 rollout status deployment/gs08-api --timeout=180s
+          kubectl -n gs08 rollout status deployment/gs08-web --timeout=180s
+          kubectl -n gs08 get pods -o wide
+          kubectl -n gs08 get svc,ingress
+
+      - name: Prueba de humo contra el Ingress
+        run: |
+          HOST=$(kubectl -n gs08 get ingress gs08 -o jsonpath='{.spec.rules[0].host}')
+          IP=$(kubectl -n gs08 get ingress gs08 -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          echo "host=$HOST ip=$IP"
+          curl -fsS -H "Host: $HOST" "http://$IP/healthz"
+          curl -fsS -H "Host: $HOST" "http://$IP/api/v1/health"
+
+      - name: Volver al estado anterior si falla
+        if: failure()
+        run: |
+          kubectl -n gs08 rollout undo deployment/gs08-api
+          kubectl -n gs08 rollout undo deployment/gs08-web
+          kubectl -n gs08 get pods

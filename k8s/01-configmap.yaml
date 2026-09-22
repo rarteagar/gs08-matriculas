@@ -1,0 +1,26 @@
+# ============================================================
+# ConfigMap: configuracion NO sensible del stack (namespace gs08)
+# ============================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gs08-config
+  labels:
+    app.kubernetes.io/part-of: gs08-matriculas
+data:
+  # Base de datos (el Service se llama gs08-db dentro del namespace)
+  DB_HOST: "gs08-db"
+  DB_PORT: "5432"
+  POSTGRES_DB: "gs08_matriculas"
+  POSTGRES_USER: "gs08"
+
+  # API
+  ENVIRONMENT: "k8s"
+  LOG_LEVEL: "info"
+  ACCESS_TOKEN_EXPIRE_MINUTES: "60"
+  TZ: "America/Lima"
+
+  # Frontend nginx: dentro del cluster balancea el Service gs08-api (2 replicas)
+  API_UPSTREAM: "server gs08-api:8000 max_fails=3 fail_timeout=10s;"
+
+  # Ruta del SPA dentro de la imagen (informativo; la imagen la trae fija)

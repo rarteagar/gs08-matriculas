@@ -1,0 +1,39 @@
+# ============================================================
+# Ingress: un solo host para SPA y API
+#   http://gs08.local/            -> gs08-web:80   (SPA Vue)
+#   http://gs08.local/api/...     -> gs08-api:8000 (FastAPI)
+#
+# ingressClassName:
+#   minikube (addons enable ingress) -> nginx
+#   k3s (Traefik por defecto)        -> traefik
+# Para probar sin DNS: añadir "127.0.0.1 gs08.local" al archivo hosts
+# o usar:  curl -H "Host: gs08.local" http://<IP-del-nodo>/
+# ============================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gs08
+  labels: { app.kubernetes.io/part-of: gs08-matriculas }
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "8m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: gs08.local
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: gs08-api
+                port:
+                  number: 8000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: gs08-web
+                port:
+                  number: 80

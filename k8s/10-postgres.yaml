@@ -1,0 +1,79 @@
+# ============================================================
+# PostgreSQL 16 en el cluster: volumen + Deployment + Service
+# (Deployment y no StatefulSet: 1 sola replica, es entorno de sustentacion)
+# ============================================================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gs08-pgdata
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gs08-db
+  labels: { app: gs08-db, capa: datos }
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate          # el volumen RWO no puede montarse dos veces a la vez
+  selector:
+    matchLabels: { app: gs08-db }
+  template:
+    metadata:
+      labels: { app: gs08-db, capa: datos }
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16.15-alpine3.24
+          ports:
+            - containerPort: 5432
+              name: pg
+          env:
+            - name: POSTGRES_DB
+              valueFrom: { configMapKeyRef: { name: gs08-config, key: POSTGRES_DB } }
+            - name: POSTGRES_USER
+              valueFrom: { configMapKeyRef: { name: gs08-config, key: POSTGRES_USER } }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: gs08-secrets, key: POSTGRES_PASSWORD } }
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: pgdata
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits:   { cpu: "1", memory: 1Gi }
+      volumes:
+        - name: pgdata
+          persistentVolumeClaim:
+            claimName: gs08-pgdata
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gs08-db
+  labels: { app: gs08-db }
+spec:
+  type: ClusterIP
+  selector: { app: gs08-db }
+  ports:
+    - name: pg
+      port: 5432
+      targetPort: 5432

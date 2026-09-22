@@ -1,0 +1,15 @@
+# Contexto de build del frontend
+.git
+.gitignore
+.dockerignore
+Dockerfile
+node_modules/
+dist/
+coverage/
+.vite/
+.env
+.env.*
+!.env.example
+*.log
+npm-debug.log*
+docs/

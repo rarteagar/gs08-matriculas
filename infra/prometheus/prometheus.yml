@@ -1,0 +1,33 @@
+# ============================================================
+# GS08 - Prometheus | recoleccion de metricas del API FastAPI
+# La app expone /metrics con prometheus-fastapi-instrumentator
+# ============================================================
+global:
+  scrape_interval: 15s
+  scrape_timeout: 10s
+  evaluation_interval: 15s
+  external_labels:
+    proyecto: gs08-matriculas
+    entorno: local
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # Las dos instancias del API (nginx reparte carga entre ambas)
+  - job_name: gs08-api
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["api:8000"]
+        labels:
+          servicio: gs08-api
+          instancia: api
+      - targets: ["api-b:8000"]
+        labels:
+          servicio: gs08-api
+          instancia: api-b
+
+  # NOTA: nginx (contenedor web) no expone metricas en formato Prometheus, por eso
+  # no se scrapea aqui. Para medirlo en el Sprint 1: agregar el exporter
+  # nginx-prometheus-exporter (o el modulo de nginx) con un job propio.

@@ -1,0 +1,150 @@
+# ============================================================
+# GS08 - Matriculas y Notas | stack local completo
+#   docker compose up -d                      -> db + api (x2) + web  (la aplicacion)
+#   docker compose --profile obs up -d        -> + prometheus + grafana
+#   docker compose ps ; docker compose logs -f api
+# Puertos por defecto (se cambian en .env):
+#   web 8080 | api 8000 | db 5432 | prometheus 9090 | grafana 3000
+# ============================================================
+name: gs08-matriculas
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-api-common: &api-common
+  build:
+    context: ./backend
+    target: runtime
+  image: gs08-api:local
+  restart: unless-stopped
+  environment:
+    ENVIRONMENT: ${ENVIRONMENT:-local}
+    LOG_LEVEL: ${LOG_LEVEL:-info}
+    TZ: ${TZ:-America/Lima}
+    DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-gs08}:${POSTGRES_PASSWORD:-gs08_dev_pwd}@db:5432/${POSTGRES_DB:-gs08_matriculas}
+    SECRET_KEY: ${SECRET_KEY:-cambiar-esta-clave-en-produccion}
+    ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+  depends_on:
+    db:
+      condition: service_healthy
+  logging: *default-logging
+
+services:
+  # ---------------- Base de datos ----------------
+  db:
+    image: postgres:16.15-alpine3.24
+    container_name: gs08-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-gs08_matriculas}
+      POSTGRES_USER: ${POSTGRES_USER:-gs08}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gs08_dev_pwd}
+      PGDATA: /var/lib/postgresql/data/pgdata
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+      TZ: ${TZ:-America/Lima}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Scripts *.sql / *.sh de esta carpeta se ejecutan UNA sola vez, al crear el volumen
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gs08} -d ${POSTGRES_DB:-gs08_matriculas}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks: [gs08]
+    logging: *default-logging
+
+  # ---------------- API FastAPI (2 instancias -> nginx balancea) ----------------
+  api:
+    <<: *api-common
+    container_name: gs08-api
+    ports:
+      - "${API_PORT:-8000}:8000"
+    networks: [gs08]
+
+  api-b:
+    <<: *api-common
+    container_name: gs08-api-b
+    networks: [gs08]
+
+  # ---------------- Frontend Vue + nginx (proxy inverso) ----------------
+  web:
+    build:
+      context: ./frontend
+      target: runtime
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1}
+    image: gs08-web:local
+    container_name: gs08-web
+    restart: unless-stopped
+    environment:
+      # Dos backends en el mismo host -> nginx hace round-robin.
+      # max_fails/fail_timeout: si una instancia no responde, nginx la marca caida
+      # 10 s y manda todo el trafico a la otra (alta disponibilidad local).
+      API_UPSTREAM: "server api:8000 max_fails=3 fail_timeout=10s; server api-b:8000 max_fails=3 fail_timeout=10s;"
+      TZ: ${TZ:-America/Lima}
+    ports:
+      - "${WEB_PORT:-8080}:8080"
+    depends_on:
+      - api
+      - api-b
+    networks: [gs08]
+    logging: *default-logging
+
+  # ---------------- Observabilidad (profile: obs) ----------------
+  prometheus:
+    image: prom/prometheus:v3.13.3
+    container_name: gs08-prometheus
+    profiles: [obs]
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      - --web.enable-lifecycle
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks: [gs08]
+    logging: *default-logging
+
+  grafana:
+    image: grafana/grafana:12.4.11
+    container_name: gs08-grafana
+    profiles: [obs]
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-gs08_grafana}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/gs08-matriculas.json
+      TZ: ${TZ:-America/Lima}
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+    networks: [gs08]
+    logging: *default-logging
+
+volumes:
+  pgdata:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  gs08:
+    name: gs08-net
+    driver: bridge

@@ -1,0 +1,36 @@
+# --- Secretos y entorno ---
+.env
+.env.*
+!.env.example
+k8s/02-secret.yaml
+k8s/**/secret-real*.yaml
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+*.sqlite3
+
+# --- Node ---
+node_modules/
+dist/
+coverage/
+.vite/
+npm-debug.log*
+
+# --- Docker / k8s ---
+*.tar
+kind-logs/
+kubeconfig*
+
+# --- Editores / SO ---
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini

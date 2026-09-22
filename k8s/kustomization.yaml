@@ -1,0 +1,30 @@
+# ============================================================
+# Aplicar todo:  kubectl apply -k k8s/
+# El Secret NO esta aqui a proposito (se crea aparte, ver 02-secret.example.yaml)
+# ============================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: gs08
+
+resources:
+  - 00-namespace.yaml
+  - 01-configmap.yaml
+  - 10-postgres.yaml
+  - 15-migracion-job.yaml
+  - 20-api.yaml
+  - 30-web.yaml
+  - 40-ingress.yaml
+
+# Reemplazo de imagenes sin editar los YAML (lo usa el CD con kubectl set image / kustomize edit)
+images:
+  - name: ghcr.io/cambiar-usuario/gs08-api
+    newTag: "0.1.0"
+  - name: ghcr.io/cambiar-usuario/gs08-web
+    newTag: "0.1.0"
+
+labels:
+  - includeSelectors: false
+    pairs:
+      app.kubernetes.io/part-of: gs08-matriculas
+      app.kubernetes.io/managed-by: kustomize

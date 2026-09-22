@@ -1,0 +1,218 @@
+# ============================================================
+# GS08 - Matriculas | CI: validacion de infra + lint + pruebas + build de imagenes
+# Corre en cada pull request y en push a main.
+# Los jobs de aplicacion se saltan solos mientras backend/ y frontend/ no existan,
+# asi el pipeline queda verde durante el Sprint 0 (solo hay infraestructura).
+# ============================================================
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "22"
+
+jobs:
+  # ---------------------------------------------------------
+  # 1. Infraestructura: corre siempre, incluso sin codigo de app
+  # ---------------------------------------------------------
+  infra:
+    name: Validar Dockerfile, compose y manifiestos
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - name: Validar YAML, dashboard de Grafana, Dockerfile y versiones fijadas
+        run: python3 scripts/validar_infra.py
+
+      - name: Validar docker-compose (sintaxis y sustitucion de variables)
+        run: docker compose config -q && docker compose config --services
+
+      - name: Lint Dockerfile del API (hadolint)
+        uses: hadolint/hadolint-action@v3.5.0
+        with:
+          dockerfile: backend/Dockerfile
+          failure-threshold: error
+
+      - name: Lint Dockerfile del frontend (hadolint)
+        uses: hadolint/hadolint-action@v3.5.0
+        with:
+          dockerfile: frontend/Dockerfile
+          failure-threshold: error
+
+  # ---------------------------------------------------------
+  # 2. Backend FastAPI: lint + pruebas contra PostgreSQL 16
+  # ---------------------------------------------------------
+  backend:
+    name: Backend (ruff + pytest)
+    runs-on: ubuntu-24.04
+    if: ${{ hashFiles('backend/requirements.txt') != '' }}
+    services:
+      postgres:
+        image: postgres:16.15-alpine3.24
+        env:
+          POSTGRES_DB: gs08_test
+          POSTGRES_USER: gs08
+          POSTGRES_PASSWORD: gs08_test_pwd
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U gs08 -d gs08_test"
+          --health-interval 10s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://gs08:gs08_test_pwd@localhost:5432/gs08_test
+      ENVIRONMENT: test
+      SECRET_KEY: clave-solo-para-ci
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+
+      - name: Instalar dependencias
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          if [ -f requirements-dev.txt ]; then
+            pip install -r requirements-dev.txt
+          else
+            pip install ruff pytest pytest-cov
+          fi
+
+      - name: Lint y formato (ruff)
+        working-directory: backend
+        run: |
+          ruff check .
+          ruff format --check .
+
+      - name: Pruebas (pytest)
+        working-directory: backend
+        run: pytest -q --cov=app --cov-report=term-missing --cov-fail-under=60
+
+  # ---------------------------------------------------------
+  # 3. Frontend Vue: lint + pruebas + build de produccion
+  # ---------------------------------------------------------
+  frontend:
+    name: Frontend (eslint + vitest + build)
+    runs-on: ubuntu-24.04
+    if: ${{ hashFiles('frontend/package.json') != '' }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependencias
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+
+      - name: Lint (eslint)
+        working-directory: frontend
+        run: npm run lint --if-present
+
+      - name: Pruebas unitarias (vitest)
+        working-directory: frontend
+        run: npm run test:unit --if-present
+
+      - name: Build de produccion
+        working-directory: frontend
+        env:
+          VITE_API_BASE_URL: /api/v1
+        run: npm run build
+
+      - name: Publicar bundle como artefacto
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: frontend-dist
+          path: frontend/dist
+          retention-days: 7
+          if-no-files-found: error
+
+  # ---------------------------------------------------------
+  # 4. Build real de las imagenes + smoke test del stack
+  #    (levanta db + 2 APIs + nginx, igual que en local)
+  # ---------------------------------------------------------
+  imagenes:
+    name: Build de imagenes y smoke test
+    runs-on: ubuntu-24.04
+    needs: [infra, backend, frontend]
+    if: ${{ !cancelled() && !failure() && needs.infra.result == 'success' }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: docker/setup-buildx-action@v4.4.1
+
+      - name: Construir las imagenes con docker compose
+        run: docker compose build
+
+      - name: Levantar el stack
+        run: docker compose up -d
+
+      - name: Esperar y probar healthchecks
+        run: |
+          docker compose ps
+          for i in $(seq 1 30); do
+            curl -fsS http://localhost:8080/healthz && break || sleep 5
+          done
+          curl -fsS http://localhost:8080/healthz
+          curl -fsS http://localhost:8000/health
+          curl -fsS http://localhost:8000/metrics | head -20
+
+      - name: Logs si algo fallo
+        if: failure()
+        run: docker compose logs --no-color
+
+      - name: Escaneo de vulnerabilidades (informativo)
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          image-ref: gs08-api:local
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: "0"
+          ignore-unfixed: true
+
+      - name: Bajar el stack
+        if: always()
+        run: docker compose down -v
+
+  # ---------------------------------------------------------
+  # 5. Puerta final: este es el check que exige la rama main
+  # ---------------------------------------------------------
+  ci-ok:
+    name: CI OK
+    runs-on: ubuntu-24.04
+    needs: [infra, backend, frontend, imagenes]
+    if: ${{ always() }}
+    steps:
+      - name: Verificar resultados
+        run: |
+          echo "infra=${{ needs.infra.result }} backend=${{ needs.backend.result }} frontend=${{ needs.frontend.result }} imagenes=${{ needs.imagenes.result }}"
+          if [ "${{ needs.infra.result }}" != "success" ]; then
+            echo "::error::la validacion de infraestructura fallo"
+            exit 1
+          fi
+          for r in "${{ needs.backend.result }}" "${{ needs.frontend.result }}" "${{ needs.imagenes.result }}"; do
+            if [ "$r" = "failure" ] || [ "$r" = "cancelled" ]; then
+              echo "::error::job requerido en estado $r"
+              exit 1
+            fi
+          done
+          echo "CI verde (los jobs sin codigo de app se reportan como skipped)"
