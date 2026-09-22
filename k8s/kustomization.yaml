@@ -16,12 +16,25 @@ resources:
   - 30-web.yaml
   - 40-ingress.yaml
 
-# Reemplazo de imagenes sin editar los YAML (lo usa el CD con kubectl set image / kustomize edit)
+# Sustentacion local (minikube con driver docker): se usan las imagenes construidas
+# en esta maquina, cargadas con `minikube image load`. El CD las reemplaza por las de
+# GHCR con `kubectl set image` (ver .github/workflows/cd.yml), no depende de este tag.
 images:
   - name: ghcr.io/cambiar-usuario/gs08-api
-    newTag: "0.1.0"
+    newName: gs08-api
+    newTag: local
   - name: ghcr.io/cambiar-usuario/gs08-web
-    newTag: "0.1.0"
+    newName: gs08-web
+    newTag: local
+
+# En el cluster local de la sustentacion corre 1 replica por Deployment (3 pods:
+# gs08-db, gs08-api, gs08-web). El balanceo entre dos instancias del API se demuestra
+# con Docker Compose (criterio C-35); los Deployment quedan preparados para escalar.
+replicas:
+  - name: gs08-api
+    count: 1
+  - name: gs08-web
+    count: 1
 
 labels:
   - includeSelectors: false
