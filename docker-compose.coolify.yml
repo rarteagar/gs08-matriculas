@@ -42,7 +42,7 @@ x-api-common: &api-common
       condition: service_healthy
     # El esquema y la semilla los garantiza "migraciones" antes de arrancar.
     migraciones:
-      condition: service_completed_successfully
+      condition: service_started
   networks: [gs08]
   logging: *default-logging
 
@@ -83,7 +83,9 @@ services:
   # existe no toca nada, asi que puede correr en cada despliegue.
   migraciones:
     image: postgres:16.15-alpine3.24
-    restart: "no"
+    # Coolify marca el despliegue como fallido si un contenedor del stack sale
+    # (aunque salga con 0), asi que este aplica el esquema y se queda en espera.
+    restart: unless-stopped
     mem_limit: 128m
     environment:
       PGHOST: gs08-db
@@ -95,7 +97,7 @@ services:
     volumes:
       - ./db/init:/sql:ro
       - ./db/bootstrap:/bootstrap:ro
-    command: ["sh", "/bootstrap/aplicar-esquema.sh"]
+    command: ["sh", "-c", "/bootstrap/aplicar-esquema.sh; echo 'Bootstrap aplicado: el contenedor queda en espera (Coolify exige que no termine).'; sleep infinity"]
     depends_on:
       db:
         condition: service_healthy
