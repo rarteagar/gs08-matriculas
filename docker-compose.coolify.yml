@@ -11,8 +11,11 @@
 #       evolution, qdrant, postgres y redis en produccion.
 #
 #   Dominio: https://gs08-matriculas.mlarca.com  (registro A -> 5.161.121.2)
+#
+#   Sin `name:` a proposito: Coolify impone el nombre del proyecto compose
+#   (lo usa para sus labels de Traefik y para bajar el stack); fijarlo aqui
+#   rompe esa gestion.
 # ============================================================
-name: gs08-matriculas
 
 x-logging: &default-logging
   driver: json-file
