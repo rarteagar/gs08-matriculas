@@ -163,3 +163,76 @@ jobs:
           kubectl -n gs08 rollout undo deployment/gs08-api
           kubectl -n gs08 rollout undo deployment/gs08-web
           kubectl -n gs08 get pods
+
+  # ---------------------------------------------------------
+  # 3. Publicar la SPA en el hosting compartido (cPanel + FTP)
+  #
+  # El hosting compartido solo sirve estaticos, asi que aqui se
+  # compila el frontend y se sube el dist/ por FTP/FTPS al
+  # document root del subdominio creado en cPanel.
+  #
+  # Requisitos (los configura el dueno del repositorio):
+  #   * Secret  FTP_SERVER    -> ftp.robertoarteaga.net
+  #   * Secret  FTP_USERNAME  -> cuenta FTP del cPanel
+  #   * Secret  FTP_PASSWORD  -> clave de esa cuenta
+  #   * Variable SPA_DEPLOY_ENABLED = 'true' para activarlo
+  #   * Variable SPA_SERVER_DIR     -> document root del subdominio
+  #     (por defecto ./subdominios/gs08-matriculas.robertoarteaga.net/)
+  #   * Variable SPA_API_BASE_URL   -> URL de la API que consumira la
+  #     SPA publicada (si se deja vacia usa /api/v1 relativo)
+  # ---------------------------------------------------------
+  publicar_spa:
+    name: Publicar la SPA en el hosting
+    runs-on: ubuntu-24.04
+    needs: publicar
+    if: ${{ vars.SPA_DEPLOY_ENABLED == 'true' }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependencias del frontend
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Compilar la SPA
+        working-directory: ./frontend
+        env:
+          VITE_API_BASE_URL: ${{ vars.SPA_API_BASE_URL || '/api/v1' }}
+        run: |
+          npm run build
+          echo "Archivos compilados:"
+          find dist -type f | head -20
+          du -sh dist
+
+      - name: Subir la SPA por FTP al subdominio
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          local-dir: ./frontend/dist/
+          server-dir: ${{ vars.SPA_SERVER_DIR || './subdominios/gs08-matriculas.robertoarteaga.net/' }}
+          dangerous-clean-slate: false
+          log-level: standard
+
+      - name: Resumen del despliegue de la SPA
+        run: |
+          {
+            echo "### SPA publicada"
+            echo ""
+            echo "| Dato | Valor |"
+            echo "|---|---|"
+            echo "| Destino | ${SPA_DIR} |"
+            echo "| API de la SPA | ${{ vars.SPA_API_BASE_URL || '/api/v1' }} |"
+            echo "| Commit | ${{ github.event.workflow_run.head_sha || github.sha }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          SPA_DIR: ${{ vars.SPA_SERVER_DIR || './subdominios/gs08-matriculas.robertoarteaga.net/' }}
