@@ -40,6 +40,9 @@ x-api-common: &api-common
   depends_on:
     db:
       condition: service_healthy
+    # El esquema y la semilla los garantiza "migraciones" antes de arrancar.
+    migraciones:
+      condition: service_completed_successfully
   networks: [gs08]
   logging: *default-logging
 
@@ -70,6 +73,33 @@ services:
     networks:
       gs08:
         aliases: [gs08-db]
+    logging: *default-logging
+
+  # ---------------- Esquema y datos iniciales ----------------
+  # Postgres solo ejecuta /docker-entrypoint-initdb.d la primera vez que crea el
+  # volumen de datos; si ese volumen ya existia (o nacio en un despliegue
+  # fallido) la base queda vacia y el login responde 500. Este servicio aplica
+  # los .sql que falten. El script es idempotente: si la tabla usuarios ya
+  # existe no toca nada, asi que puede correr en cada despliegue.
+  migraciones:
+    image: postgres:16.15-alpine3.24
+    restart: "no"
+    mem_limit: 128m
+    environment:
+      PGHOST: gs08-db
+      PGPORT: "5432"
+      PGDATABASE: ${POSTGRES_DB:-gs08_matriculas}
+      PGUSER: ${POSTGRES_USER:-gs08}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-gs08_dev_pwd}
+      TZ: America/Lima
+    volumes:
+      - ./db/init:/sql:ro
+      - ./db/bootstrap:/bootstrap:ro
+    command: ["sh", "/bootstrap/aplicar-esquema.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [gs08]
     logging: *default-logging
 
   # ---------------- API FastAPI (2 instancias -> nginx balancea) ----------------
