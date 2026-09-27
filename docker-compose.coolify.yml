@@ -87,13 +87,23 @@ services:
     image: gs08-web:prod
     restart: unless-stopped
     mem_limit: 128m
+    # El proxy de Coolify enruta al puerto 80 (el EXPOSE que la imagen nginx
+    # hereda de su base), asi que aqui nginx escucha en 80 y necesita root
+    # para poder abrir un puerto privilegiado. En local y Kubernetes sigue
+    # en 8080 sin privilegios.
+    user: root
     environment:
       # Round-robin entre las dos instancias de la API; si una no responde,
       # nginx la marca caida 10 s y manda todo el trafico a la otra.
       API_UPSTREAM: "server api:8000 max_fails=3 fail_timeout=10s; server api-b:8000 max_fails=3 fail_timeout=10s;"
       TZ: America/Lima
-      # Coolify: dominio publico de este servicio + certificado automatico.
-      SERVICE_FQDN_WEB_8080: ${SERVICE_FQDN_WEB_8080:-https://gs08-matriculas.mlarca.com}
+      NGINX_LISTEN_PORT: "80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/healthz >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     depends_on:
       - api
       - api-b

@@ -15,7 +15,7 @@ upstream gs08_api {
 
 server {
     # 8080 y no 80: el contenedor corre con el usuario nginx (sin privilegios)
-    listen 8080;
+    listen ${NGINX_LISTEN_PORT};
     server_name _;
     root /usr/share/nginx/html;
     index index.html;

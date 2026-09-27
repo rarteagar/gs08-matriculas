@@ -22,6 +22,10 @@ RUN chown -R nginx:nginx /var/cache/nginx /etc/nginx/conf.d \
  && chown -R nginx:nginx /var/run/nginx.pid /usr/share/nginx/html
 # Plantilla: docker-entrypoint sustituye ${API_UPSTREAM} y genera /etc/nginx/conf.d/default.conf
 ENV API_UPSTREAM="server api:8000;"
+# Puerto de escucha. 8080 (sin privilegios) por defecto: local y Kubernetes.
+# Coolify/VPS lo sube a 80 en su compose y arranca el contenedor como root,
+# porque su proxy Traefik enruta al 80 (el EXPOSE heredado de la imagen nginx).
+ENV NGINX_LISTEN_PORT=8080
 COPY nginx/default.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=build /app/dist /usr/share/nginx/html
 USER nginx
