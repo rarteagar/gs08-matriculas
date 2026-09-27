@@ -6,7 +6,7 @@
 # de job (solo dentro de steps, despues del checkout), asi que ahora esos jobs
 # corren siempre: su codigo ya existe.
 # ============================================================
-name: CI
+name: CI · Integración continua
 
 on:
   pull_request:
@@ -31,33 +31,33 @@ jobs:
   # 1. Infraestructura: corre siempre, incluso sin codigo de app
   # ---------------------------------------------------------
   infra:
-    name: Validar Dockerfile, compose y manifiestos
+    name: Validación de Dockerfiles, compose y manifiestos
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7.0.1
 
-      - name: Validar YAML, dashboard de Grafana, Dockerfile y versiones fijadas
+      - name: Validar YAML, panel de Grafana, Dockerfile y versiones fijadas
         run: python3 scripts/validar_infra.py
 
-      - name: Validar docker-compose (sintaxis y sustitucion de variables)
+      - name: Validar docker-compose (sintaxis y sustitución de variables)
         run: docker compose config -q && docker compose config --services
 
-      - name: Imagen del API (la necesita el control de D-14)
+      - name: Compilar la imagen del API (la necesita el control de D-14)
         run: docker compose build api
 
       # TC-08: control automatico de D-14 (una sola fuente de verdad del esquema).
       # El script sale 0 si db/init/ y Alembic coinciden, 1 si difieren y 2 si la
       # foto del catalogo fallo: cualquiera de los dos ultimos rompe el job.
-      - name: Control de D-14 (db/init/ vs revision inicial de Alembic)
+      - name: Control de D-14 (db/init/ frente a la revisión inicial de Alembic)
         run: |
           if bash db/verificacion/comparar_con_alembic.sh; then
-            echo "OK: db/init/ y la revision inicial de Alembic dejan el mismo esquema (D-14)"
+            echo "OK: db/init/ y la revisión inicial de Alembic dejan el mismo esquema (D-14)"
           else
-            echo "::error::D-14 rota: db/init/ y Alembic difieren, o la foto del catalogo fallo (exit != 0)"
+            echo "::error::D-14 rota: db/init/ y Alembic difieren, o la foto del catálogo falló (exit != 0)"
             exit 1
           fi
 
-      - name: Catalogo de D-14 como evidencia (se guarda siempre)
+      - name: Catálogo de D-14 como evidencia (se guarda siempre)
         if: always()
         uses: actions/upload-artifact@v7.0.1
         with:
@@ -66,13 +66,13 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-      - name: Lint Dockerfile del API (hadolint)
+      - name: Revisión estática del Dockerfile del API (hadolint)
         uses: hadolint/hadolint-action@v3.5.0
         with:
           dockerfile: backend/Dockerfile
           failure-threshold: error
 
-      - name: Lint Dockerfile del frontend (hadolint)
+      - name: Revisión estática del Dockerfile del frontend (hadolint)
         uses: hadolint/hadolint-action@v3.5.0
         with:
           dockerfile: frontend/Dockerfile
@@ -82,7 +82,7 @@ jobs:
   # 2. Backend FastAPI: lint + pruebas contra PostgreSQL 16
   # ---------------------------------------------------------
   backend:
-    name: Backend (ruff + pytest)
+    name: Backend · lint y pruebas (ruff + pytest)
     runs-on: ubuntu-24.04
     services:
       postgres:
@@ -119,7 +119,7 @@ jobs:
             pip install ruff pytest pytest-cov
           fi
 
-      - name: Lint y formato (ruff)
+      - name: Revisión de estilo y formato (ruff)
         working-directory: backend
         run: |
           ruff check .
@@ -133,7 +133,7 @@ jobs:
   # 3. Frontend Vue: lint + pruebas + build de produccion
   # ---------------------------------------------------------
   frontend:
-    name: Frontend (eslint + vitest + build)
+    name: Frontend · lint, pruebas y compilación (eslint + vitest + build)
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7.0.1
@@ -148,7 +148,7 @@ jobs:
         working-directory: frontend
         run: npm ci --no-audit --no-fund
 
-      - name: Lint (eslint)
+      - name: Revisión estática (eslint)
         working-directory: frontend
         run: npm run lint --if-present
 
@@ -156,13 +156,13 @@ jobs:
         working-directory: frontend
         run: npm run test:unit --if-present
 
-      - name: Build de produccion
+      - name: Compilación de producción
         working-directory: frontend
         env:
           VITE_API_BASE_URL: /api/v1
         run: npm run build
 
-      - name: Publicar bundle como artefacto
+      - name: Publicar el paquete compilado como artefacto
         uses: actions/upload-artifact@v7.0.1
         with:
           name: frontend-dist
@@ -175,7 +175,7 @@ jobs:
   #    (levanta db + 2 APIs + nginx, igual que en local)
   # ---------------------------------------------------------
   imagenes:
-    name: Build de imagenes y smoke test
+    name: Compilación de imágenes y prueba de humo
     runs-on: ubuntu-24.04
     needs: [infra, backend, frontend]
     if: ${{ !cancelled() && !failure() && needs.infra.result == 'success' }}
@@ -184,13 +184,13 @@ jobs:
 
       - uses: docker/setup-buildx-action@v4.4.1
 
-      - name: Construir las imagenes con docker compose
+      - name: Construir las imágenes con docker compose
         run: docker compose build
 
-      - name: Levantar el stack
+      - name: Levantar el entorno
         run: docker compose up -d
 
-      - name: Esperar y probar healthchecks
+      - name: Esperar y probar los chequeos de salud
         run: |
           docker compose ps
           for i in $(seq 1 30); do
@@ -200,7 +200,7 @@ jobs:
           curl -fsS http://localhost:8000/health
           curl -fsS http://localhost:8000/metrics | head -20
 
-      - name: Logs si algo fallo
+      - name: Registros si algo falla
         if: failure()
         run: docker compose logs --no-color
 
@@ -213,7 +213,7 @@ jobs:
           exit-code: "0"
           ignore-unfixed: true
 
-      - name: Bajar el stack
+      - name: Bajar el entorno
         if: always()
         run: docker compose down -v
 
@@ -221,7 +221,7 @@ jobs:
   # 5. Puerta final: este es el check que exige la rama main
   # ---------------------------------------------------------
   ci-ok:
-    name: CI OK
+    name: CI en verde (puerta final)
     runs-on: ubuntu-24.04
     needs: [infra, backend, frontend, imagenes]
     if: ${{ always() }}
@@ -230,13 +230,13 @@ jobs:
         run: |
           echo "infra=${{ needs.infra.result }} backend=${{ needs.backend.result }} frontend=${{ needs.frontend.result }} imagenes=${{ needs.imagenes.result }}"
           if [ "${{ needs.infra.result }}" != "success" ]; then
-            echo "::error::la validacion de infraestructura fallo"
+            echo "::error::la validación de infraestructura falló"
             exit 1
           fi
           for r in "${{ needs.backend.result }}" "${{ needs.frontend.result }}" "${{ needs.imagenes.result }}"; do
             if [ "$r" = "failure" ] || [ "$r" = "cancelled" ]; then
-              echo "::error::job requerido en estado $r"
+              echo "::error::trabajo requerido en estado $r"
               exit 1
             fi
           done
-          echo "CI verde (los jobs sin codigo de app se reportan como skipped)"
+          echo "CI en verde (los trabajos sin código de aplicación se reportan como omitidos)"

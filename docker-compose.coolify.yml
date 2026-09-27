@@ -40,6 +40,7 @@ x-api-common: &api-common
   depends_on:
     db:
       condition: service_healthy
+  networks: [gs08]
   logging: *default-logging
 
 services:
@@ -66,6 +67,7 @@ services:
       timeout: 5s
       retries: 10
       start_period: 25s
+    networks: [gs08]
     logging: *default-logging
 
   # ---------------- API FastAPI (2 instancias -> nginx balancea) ----------------
@@ -95,7 +97,18 @@ services:
     depends_on:
       - api
       - api-b
+    # web es el unico servicio publicado: necesita la red del proxy de Coolify
+    # (externa) ademas de la red interna del proyecto.
+    networks: [coolify, gs08]
     logging: *default-logging
 
 volumes:
   pgdata:
+
+networks:
+  # Red del proxy Traefik de Coolify: sin esto, Traefik no ve el contenedor
+  # y el dominio responde 502 Bad Gateway.
+  coolify:
+    external: true
+  # Red interna: db, api y api-b solo se hablan entre ellos.
+  gs08:
