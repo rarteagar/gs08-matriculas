@@ -196,11 +196,20 @@ jobs:
           for i in $(seq 1 30); do
             curl -fsS http://localhost:8080/healthz && break || sleep 5
           done
-          # Con reintentos: los contenedores pueden seguir en "health: starting"
-          # y un curl sin --retry muere con "Connection reset by peer" (exit 56).
-          curl --retry 15 --retry-connrefused --retry-delay 4 -fsS http://localhost:8080/healthz
-          curl --retry 15 --retry-connrefused --retry-delay 4 -fsS http://localhost:8000/health
-          curl --retry 15 --retry-connrefused --retry-delay 4 -fsS http://localhost:8000/metrics | head -20
+          # El web y la API arrancan a la vez, asi que se espera a cada uno por
+          # separado: cuando el web ya responde, uvicorn todavia puede estar
+          # levantando sus workers y un "connection reset" en ese momento no se
+          # considera error transitorio (curl --retry no lo reintenta).
+          for i in $(seq 1 30); do
+            curl -fsS http://localhost:8080/healthz && break || sleep 5
+          done
+          for i in $(seq 1 30); do
+            curl -fsS http://localhost:8000/health && break || sleep 5
+          done
+          echo "--- respuestas de los chequeos de salud ---"
+          curl -fsS http://localhost:8080/healthz; echo
+          curl -fsS http://localhost:8000/health; echo
+          curl -fsS http://localhost:8000/metrics | head -20
 
       - name: Registros si algo falla
         if: failure()
