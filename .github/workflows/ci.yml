@@ -1,8 +1,10 @@
 # ============================================================
 # GS08 - Matriculas | CI: validacion de infra + lint + pruebas + build de imagenes
 # Corre en cada pull request y en push a main.
-# Los jobs de aplicacion se saltan solos mientras backend/ y frontend/ no existan,
-# asi el pipeline queda verde durante el Sprint 0 (solo hay infraestructura).
+# Nota: hasta el Sprint 0 solo habia infraestructura y los jobs de aplicacion se
+# saltaban con hashFiles() en el if del job. GitHub NO admite hashFiles() a nivel
+# de job (solo dentro de steps, despues del checkout), asi que ahora esos jobs
+# corren siempre: su codigo ya existe.
 # ============================================================
 name: CI
 
@@ -82,7 +84,6 @@ jobs:
   backend:
     name: Backend (ruff + pytest)
     runs-on: ubuntu-24.04
-    if: ${{ hashFiles('backend/requirements.txt') != '' }}
     services:
       postgres:
         image: postgres:16.15-alpine3.24
@@ -134,7 +135,6 @@ jobs:
   frontend:
     name: Frontend (eslint + vitest + build)
     runs-on: ubuntu-24.04
-    if: ${{ hashFiles('frontend/package.json') != '' }}
     steps:
       - uses: actions/checkout@v7.0.1
 
