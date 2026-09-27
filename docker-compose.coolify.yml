@@ -100,6 +100,10 @@ services:
     # web es el unico servicio publicado: necesita la red del proxy de Coolify
     # (externa) ademas de la red interna del proyecto.
     networks: [coolify, gs08]
+    # Con dos redes conectadas, Traefik debe usar la IP de la red del proxy;
+    # sin esta label elige la interna, no la alcanza y responde 502.
+    labels:
+      - "traefik.docker.network=coolify"
     logging: *default-logging
 
 volumes:
