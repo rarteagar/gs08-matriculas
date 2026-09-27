@@ -34,7 +34,7 @@ x-api-common: &api-common
     ENVIRONMENT: production
     LOG_LEVEL: ${LOG_LEVEL:-info}
     TZ: America/Lima
-    DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-gs08}:${POSTGRES_PASSWORD:-gs08_dev_pwd}@db:5432/${POSTGRES_DB:-gs08_matriculas}
+    DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-gs08}:${POSTGRES_PASSWORD:-gs08_dev_pwd}@gs08-db:5432/${POSTGRES_DB:-gs08_matriculas}
     SECRET_KEY: ${SECRET_KEY:-cambiar-esta-clave-en-produccion}
     ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-120}
   depends_on:
@@ -67,15 +67,26 @@ services:
       timeout: 5s
       retries: 10
       start_period: 25s
-    networks: [gs08]
+    networks:
+      gs08:
+        aliases: [gs08-db]
     logging: *default-logging
 
   # ---------------- API FastAPI (2 instancias -> nginx balancea) ----------------
+  # Alias propios dentro de la red interna. Sin ellos, en la red compartida del
+  # proxy puede haber otro contenedor llamado "api" de otro proyecto, y nginx
+  # resuelve su IP: "connect() failed ... http://[fd58:...]:8000" (fallo real).
   api:
     <<: *api-common
+    networks:
+      gs08:
+        aliases: [gs08-api]
 
   api-b:
     <<: *api-common
+    networks:
+      gs08:
+        aliases: [gs08-api-b]
 
   # ---------------- Frontend Vue + nginx (proxy inverso publico) ----------------
   web:
@@ -93,9 +104,9 @@ services:
     # en 8080 sin privilegios.
     user: root
     environment:
-      # Round-robin entre las dos instancias de la API; si una no responde,
-      # nginx la marca caida 10 s y manda todo el trafico a la otra.
-      API_UPSTREAM: "server api:8000 max_fails=3 fail_timeout=10s; server api-b:8000 max_fails=3 fail_timeout=10s;"
+      # Round-robin entre las dos instancias de la API, por sus alias internos;
+      # si una no responde, nginx la marca caida 10 s y manda todo a la otra.
+      API_UPSTREAM: "server gs08-api:8000 max_fails=3 fail_timeout=10s; server gs08-api-b:8000 max_fails=3 fail_timeout=10s;"
       TZ: America/Lima
       NGINX_LISTEN_PORT: "80"
     healthcheck:
