@@ -1,0 +1,98 @@
+# ============================================================
+# GS08 - Matriculas y Notas | despliegue en Coolify (VPS propio)
+#
+#   Diferencia con docker-compose.yml (local):
+#     * NO publica puertos al host: el proxy Traefik de Coolify
+#       es el unico que escucha en 80/443 y enruta por dominio.
+#     * El servicio `web` declara SERVICE_FQDN_WEB_8080, que es
+#       la variable con la que Coolify asigna el dominio publico
+#       y genera el certificado Let's Encrypt.
+#     * Limites de memoria por servicio: el VPS ya hospeda n8n,
+#       evolution, qdrant, postgres y redis en produccion.
+#
+#   Dominio: https://gs08-matriculas.mlarca.com  (registro A -> 5.161.121.2)
+# ============================================================
+name: gs08-matriculas
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-api-common: &api-common
+  build:
+    context: ./backend
+    target: runtime
+  image: gs08-api:prod
+  restart: unless-stopped
+  mem_limit: 384m
+  environment:
+    ENVIRONMENT: production
+    LOG_LEVEL: ${LOG_LEVEL:-info}
+    TZ: America/Lima
+    DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-gs08}:${POSTGRES_PASSWORD:-gs08_dev_pwd}@db:5432/${POSTGRES_DB:-gs08_matriculas}
+    SECRET_KEY: ${SECRET_KEY:-cambiar-esta-clave-en-produccion}
+    ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-120}
+  depends_on:
+    db:
+      condition: service_healthy
+  logging: *default-logging
+
+services:
+  # ---------------- Base de datos ----------------
+  db:
+    image: postgres:16.15-alpine3.24
+    restart: unless-stopped
+    mem_limit: 320m
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-gs08_matriculas}
+      POSTGRES_USER: ${POSTGRES_USER:-gs08}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gs08_dev_pwd}
+      PGDATA: /var/lib/postgresql/data/pgdata
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+      TZ: America/Lima
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Los *.sql de esta carpeta se ejecutan UNA vez, al crear el volumen:
+      # esquema, vista, semilla y notas del modelo legacy.
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gs08} -d ${POSTGRES_DB:-gs08_matriculas}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 25s
+    logging: *default-logging
+
+  # ---------------- API FastAPI (2 instancias -> nginx balancea) ----------------
+  api:
+    <<: *api-common
+
+  api-b:
+    <<: *api-common
+
+  # ---------------- Frontend Vue + nginx (proxy inverso publico) ----------------
+  web:
+    build:
+      context: ./frontend
+      target: runtime
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1}
+    image: gs08-web:prod
+    restart: unless-stopped
+    mem_limit: 128m
+    environment:
+      # Round-robin entre las dos instancias de la API; si una no responde,
+      # nginx la marca caida 10 s y manda todo el trafico a la otra.
+      API_UPSTREAM: "server api:8000 max_fails=3 fail_timeout=10s; server api-b:8000 max_fails=3 fail_timeout=10s;"
+      TZ: America/Lima
+      # Coolify: dominio publico de este servicio + certificado automatico.
+      SERVICE_FQDN_WEB_8080: ${SERVICE_FQDN_WEB_8080:-https://gs08-matriculas.mlarca.com}
+    depends_on:
+      - api
+      - api-b
+    logging: *default-logging
+
+volumes:
+  pgdata:
