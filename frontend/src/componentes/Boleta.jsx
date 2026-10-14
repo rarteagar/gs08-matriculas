@@ -112,7 +112,7 @@ export function Boleta({ estudiante, onCerrar }) {
             </div>
             <div className="tarjeta">
               <dt className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
-                Cursos calificados
+                Créditos con notas
               </dt>
               <dd className="mt-1 text-2xl font-semibold text-slate-700">{datos.creditos_con_notas}</dd>
             </div>
