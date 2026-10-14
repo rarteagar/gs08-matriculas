@@ -40,7 +40,7 @@ archivo o el commit, y las salidas reales viven en los archivos de evidencia de 
 
 El Sprint 0 se trabajó en la sala «Developer Team», que es el espacio de trabajo del grupo. El entregable del
 curso es **grupal**, en **español**, **con firma grupal**, y **cada integrante documenta y expone su bloque**.
-**Docente del curso: Dr. Jack Peralta.**
+**Docente del curso: Dr. Jack Harry Peralta Cáceres.**
 
 | Integrante | Rol académico | Rol en la sala | Documenta | Expone |
 |---|---|---|---|---|
@@ -123,7 +123,7 @@ salvo lo que se indica:
 | **D-20** | La documentación vive en `docs/` (raíz) y `docs/decisiones.md` se **cita**, no se reescribe |
 | **D-21** | Ante discrepancia entre criterio y seed, **manda el seed** y se corrige el criterio |
 | **D-22** | El DOCX y el PPTX de entrega académica los **cierra el dueño**; @documentador entrega el borrador |
-| **D-23** | **Entregable académico:** grupo de **3 integrantes** (Arteaga Rullier Roberto · Scrum Master+DevOps, Díaz Cárdenas Jorge Luis · Backend, Inocencio Gargate Dalcir · Frontend+Documentador), informe y exposición **en español** con **firma grupal**, **10 láminas concisas** con una idea por lámina, docente **Dr. Jack Peralta**; cada integrante documenta y expone su bloque |
+| **D-23** | **Entregable académico:** grupo de **3 integrantes** (Arteaga Rullier Roberto · Scrum Master+DevOps, Díaz Cárdenas Jorge Luis · Backend, Inocencio Gargate Dalcir · Frontend+Documentador), informe y exposición **en español** con **firma grupal**, **10 láminas concisas** con una idea por lámina, docente **Dr. Jack Harry Peralta Cáceres**; cada integrante documenta y expone su bloque |
 
 ---
 
