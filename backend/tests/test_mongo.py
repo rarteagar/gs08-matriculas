@@ -105,6 +105,42 @@ def test_si_mongo_no_responde_queda_apagada(monkeypatch) -> None:
         mongo.reiniciar()
 
 
+def test_un_fallo_no_apaga_la_bitacora_para_siempre(monkeypatch) -> None:
+    """Un fallo al primer intento se reintenta tras el enfriamiento (pasó en la práctica)."""
+    from types import SimpleNamespace
+
+    class ClienteQueFalla:
+        """Imita a pymongo: cliente[bd] devuelve una base y cliente.admin.command('ping') responde."""
+
+        def __init__(self, fallos: int) -> None:
+            self.fallos = fallos
+            self.base = BaseFalsa()
+            self.admin = SimpleNamespace(command=lambda *a, **k: self._ping())
+
+        def __getitem__(self, nombre: str) -> BaseFalsa:
+            return self.base
+
+        def _ping(self) -> dict:
+            if self.fallos > 0:
+                self.fallos -= 1
+                raise ConnectionError("mongo no responde")
+            return {"ok": 1}
+
+    cliente = ClienteQueFalla(fallos=2)
+    monkeypatch.setattr(config, "mongo_url", "mongodb://espia:27017")
+    monkeypatch.setattr(mongo, "ENFRIAMIENTO_SEGUNDOS", 0)  # sin espera real en la prueba
+    monkeypatch.setattr(mongo, "MongoClient", lambda *a, **k: cliente)
+    mongo.reiniciar()
+    try:
+        assert mongo.base() is None  # primer intento: falla
+        assert mongo.base() is None  # reintenta y vuelve a fallar
+        assert mongo.base() is not None  # tercer intento: conecta
+        assert mongo.activa() is True
+        assert mongo.registrar("crear", "estudiante", 1, "admin") is not None
+    finally:
+        mongo.reiniciar()
+
+
 def test_error_al_escribir_se_traga(base_falsa) -> None:
     def explotar(*a, **k):
         raise ConnectionError("mongo caído")

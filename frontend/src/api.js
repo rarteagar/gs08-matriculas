@@ -1,8 +1,9 @@
 // Cliente del API. Todo pasa por nginx (/api/v1), así que el SPA y el API
 // comparten origen y no hay CORS ni URL absoluta embebida.
 //
-// Cubre las 30 operaciones del contrato (16 rutas): autenticación, panel,
-// estudiantes (+ boleta), cursos, matrículas (+ notas), notas y usuarios.
+// Cubre las operaciones del contrato que usa el SPA: autenticación, panel,
+// estudiantes (+ boleta y boleta archivada), cursos, matrículas (+ notas), notas,
+// usuarios y la bitácora (auditoría).
 const BASE = import.meta.env.VITE_API_BASE_URL || '/api/v1'
 const CLAVE_TOKEN = 'gs08.token'
 const CLAVE_USUARIO = 'gs08.usuario'
@@ -42,6 +43,14 @@ function cadenaDe(parametros = {}) {
   return new URLSearchParams(limpios).toString()
 }
 
+function volverAlAcceso() {
+  try {
+    if (!window.location.pathname.startsWith('/login')) window.location.assign('/login')
+  } catch {
+    // sin navegación disponible (jsdom en las pruebas) no hay nada que hacer
+  }
+}
+
 export async function pedir(ruta, { metodo = 'GET', cuerpo, parametros } = {}) {
   const cabeceras = {}
   if (cuerpo !== undefined) cabeceras['Content-Type'] = 'application/json'
@@ -67,6 +76,12 @@ export async function pedir(ruta, { metodo = 'GET', cuerpo, parametros } = {}) {
     const error = new Error(mensajeDeError(datos, respuesta.status))
     error.estado = respuesta.status
     error.datos = datos
+    // Un 401 en cualquier ruta protegida significa que la sesión ya no sirve: se olvida
+    // y se vuelve al acceso. En /auth/login un 401 es "clave equivocada" y no se toca nada.
+    if (respuesta.status === 401 && ruta !== '/auth/login') {
+      cerrarSesion()
+      volverAlAcceso()
+    }
     throw error
   }
   return datos
@@ -89,6 +104,7 @@ export const api = {
   eliminarEstudiante: (id, confirmar) =>
     pedir(`/estudiantes/${id}`, { metodo: 'DELETE', parametros: { confirmar } }),
   boleta: (id, periodo) => pedir(`/estudiantes/${id}/boleta`, { parametros: { periodo } }),
+  boletaArchivada: (id, periodo) => pedir(`/estudiantes/${id}/boleta/archivada`, { parametros: { periodo } }),
 
   // --- cursos ---
   cursos: (parametros) => pedir('/cursos', { parametros }),
@@ -117,4 +133,7 @@ export const api = {
   crearUsuario: (cuerpo) => pedir('/usuarios', { metodo: 'POST', cuerpo }),
   editarUsuario: (id, cuerpo) => pedir(`/usuarios/${id}`, { metodo: 'PUT', cuerpo }),
   eliminarUsuario: (id) => pedir(`/usuarios/${id}`, { metodo: 'DELETE' }),
+
+  // --- bitácora documental (segunda base, solo admin) ---
+  auditoria: (parametros) => pedir('/auditoria', { parametros }),
 }

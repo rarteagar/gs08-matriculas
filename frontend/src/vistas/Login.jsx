@@ -44,6 +44,8 @@ export default function Login() {
               className="campo"
               autoComplete="username"
               required
+              aria-invalid={Boolean(error) || undefined}
+              aria-describedby={error ? 'error-login' : undefined}
               value={usuario}
               onChange={(evento) => setUsuario(evento.target.value)}
             />
@@ -58,13 +60,15 @@ export default function Login() {
               className="campo"
               autoComplete="current-password"
               required
+              aria-invalid={Boolean(error) || undefined}
+              aria-describedby={error ? 'error-login' : undefined}
               value={password}
               onChange={(evento) => setPassword(evento.target.value)}
             />
           </div>
 
           {error && (
-            <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700" role="alert">
+            <p id="error-login" className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700" role="alert">
               {error}
             </p>
           )}

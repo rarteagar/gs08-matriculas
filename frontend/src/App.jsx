@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { cerrarSesion, token, usuarioGuardado } from './api'
 import Login from './vistas/Login.jsx'
@@ -6,6 +7,7 @@ import Estudiantes from './vistas/Estudiantes.jsx'
 import Cursos from './vistas/Cursos.jsx'
 import Matriculas from './vistas/Matriculas.jsx'
 import Usuarios from './vistas/Usuarios.jsx'
+import Auditoria from './vistas/Auditoria.jsx'
 
 const ENLACES = [
   { a: '/', t: 'Panel', fin: true },
@@ -13,6 +15,7 @@ const ENLACES = [
   { a: '/cursos', t: 'Cursos' },
   { a: '/matriculas', t: 'Matrículas' },
   { a: '/usuarios', t: 'Usuarios', soloAdmin: true },
+  { a: '/auditoria', t: 'Auditoría', soloAdmin: true },
 ]
 
 function RutaPrivada({ children }) {
@@ -23,10 +26,20 @@ function RutaPrivada({ children }) {
 export default function App() {
   const navegar = useNavigate()
   // Se lee la ubicación para que la cabecera se vuelva a pintar al entrar o salir.
-  useLocation()
+  const { pathname } = useLocation()
   const usuario = usuarioGuardado()
   const haySesion = Boolean(token())
   const enlaces = ENLACES.filter((enlace) => !enlace.soloAdmin || usuario?.rol === 'admin')
+  const contenido = useRef(null)
+  const seccion =
+    ENLACES.find((enlace) => (enlace.fin ? pathname === enlace.a : pathname.startsWith(enlace.a)))?.t || ''
+
+  // Accesibilidad (D-30): al cambiar de sección el foco va al contenido y la sección se
+  // anuncia, para que quien navega con teclado o con lector de pantalla no se pierda.
+  useEffect(() => {
+    if (!haySesion) return
+    contenido.current?.focus()
+  }, [pathname, haySesion])
 
   function salir() {
     cerrarSesion()
@@ -35,6 +48,9 @@ export default function App() {
 
   return (
     <div className="min-h-screen">
+      <a className="salto-contenido" href="#contenido">
+        Saltar al contenido
+      </a>
       {haySesion && (
         <header className="border-b border-slate-200 bg-white">
           <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-5 py-3">
@@ -70,7 +86,10 @@ export default function App() {
         </header>
       )}
 
-      <main className="mx-auto max-w-6xl px-5 py-6">
+      <main id="contenido" ref={contenido} tabIndex={-1} className="mx-auto max-w-6xl px-5 py-6">
+        <p className="solo-lectores" role="status" aria-live="polite">
+          {seccion ? `Sección ${seccion}` : ''}
+        </p>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route
@@ -110,6 +129,14 @@ export default function App() {
             element={
               <RutaPrivada>
                 <Usuarios />
+              </RutaPrivada>
+            }
+          />
+          <Route
+            path="/auditoria"
+            element={
+              <RutaPrivada>
+                <Auditoria />
               </RutaPrivada>
             }
           />

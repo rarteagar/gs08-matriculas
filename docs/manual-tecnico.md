@@ -30,7 +30,7 @@ entregados, y el recorrido de extremo a extremo sale verde por el proxy (**39 OK
 
 | Capa | Estado | Evidencia |
 |---|---|---|
-| **API FastAPI real** | ✅ **existe, corre y está probado de punta a punta: 20 rutas / 35 operaciones** (`/openapi.json` v0.3.0), recorrido completo verde por el proxy | `bash scripts/smoke_api.sh --e2e` → **39 OK, 0 fallas, 0 bloqueadas, exit 0** (`docs/qa/evidencia/smoke-api-20260922-000358.txt`); capa nueva: **119 pruebas, 90 % de cobertura** |
+| **API FastAPI real** | ✅ **existe, corre y está probado de punta a punta: 20 rutas / 35 operaciones** (`/openapi.json` v0.3.0), recorrido completo verde por el proxy | `bash scripts/smoke_api.sh --e2e` → **39 OK, 0 fallas, 0 bloqueadas, exit 0** (`docs/qa/evidencia/smoke-api-20260922-000358.txt`); capa nueva: **121 pruebas, 90 % de cobertura** |
 | Autenticación, panel, estudiantes, cursos, matrículas | ✅ **funcionando en el compose real**: `POST /api/v1/auth/login` → 200 + token; `/api/v1/dashboard` → **12 / 7 / 23 / 1**; `?q=45123456` → 1 fila con acentos correctos; `?q=huaman` = `?q=Huamán` = `?q=HUAMAN` → 1/1/1 | salidas reales en §2.1 |
 | **Notas y boleta** | ✅ **funcionando:** en el recorrido E2E del smoke, 3 notas → boleta con **16.00** y promedio ponderado | `docs/qa/evidencia/smoke-api-20260922-000358.txt` |
 | **`POST /api/v1/matriculas` y `POST /api/v1/usuarios`** | ✅ **cerrados:** los dos `500` por `AmbiguousParameter` (BUG-08/BUG-09) quedaron sin reproducir en la corrida verde de 39/39 | `docs/qa/evidencia/api-500-ambiguousparameter.txt` (el bug) · smoke 39/39 (el cierre) |
@@ -158,7 +158,9 @@ Fuente: `docs/analisis/modelo-datos.md` §4 (casos de uso CU-01…CU-15), `docs/
 
 El núcleo sigue siendo FastAPI + PostgreSQL 16; encima se añadieron cuatro capas para el ítem «Backend seguro y
 eficiente — APIs + BD híbridas» de la consigna. Todas **degradan solas**: si la pieza no está configurada o no
-responde, el API contesta igual (el CI solo trae PostgreSQL, y sigue verde).
+responde, el API contesta igual (el CI solo trae PostgreSQL, y sigue verde). Si la variable está puesta pero la
+pieza no responde, **no se apaga para siempre**: se reintenta cada 30 s (`ENFRIAMIENTO_SEGUNDOS` en `app/mongo.py`
+y `app/cache.py`, D-31).
 
 | Pieza | Dónde vive | Qué hace | Cómo se comprueba |
 |---|---|---|---|

@@ -91,7 +91,7 @@ Docker Desktop corre con `29.8.0 | linux | overlayfs | Mem=12 GB` (`docs/devops/
 
 Las dependencias del API están **instaladas y verificadas**: `backend/requirements.txt` existe y el comando
 exacto del CI (`ruff check . && ruff format --check . && pytest -q --cov=app --cov-fail-under=60`) corre
-**119 pruebas con 90 % de cobertura, exit 0** (13/10/2026; eran 57 y 87,29 % antes de la capa de rúbrica D-28/D-29).
+**121 pruebas con 90 % de cobertura, exit 0** (14/10/2026; eran 57 y 87,29 % antes de la capa de rúbrica D-28/D-29).
 La autenticación OAuth2 con scopes (D-29) **no sumó dependencias**: usa el `Form` y el `OAuth2PasswordBearer`
 de FastAPI.
 Versiones contratadas (fuente:
@@ -110,7 +110,7 @@ Versiones contratadas (fuente:
 | Segunda base documental (D-28) | `pymongo==4.18.3` |
 | Caché distribuida (D-28) | `redis==8.1.0` |
 | Logs JSON (D-28) | `python-json-logger==4.2.0` |
-| Frontend | React 19 + Vite + Tailwind (`frontend/package.json`): **6 vistas** (login, panel, estudiantes, cursos, matrículas, usuarios) y los diálogos de boleta y notas; consumen las **30 operaciones** del contrato (D-27) |
+| Frontend | React 19 + Vite + Tailwind (`frontend/package.json`): **7 vistas** (login, panel, estudiantes, cursos, matrículas, usuarios y auditoría) y los diálogos de boleta y notas; consumen las operaciones del contrato que usa el SPA |
 
 ---
 

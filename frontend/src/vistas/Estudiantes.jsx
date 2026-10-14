@@ -253,6 +253,7 @@ export default function Estudiantes() {
       <Avisos error={error} aviso={aviso} />
 
       <TablaRecurso
+        titulo="Estudiantes"
         columnas={[
           'Código',
           'DNI',
@@ -275,6 +276,7 @@ export default function Estudiantes() {
                 <button
                   className="boton-secundario px-3! py-1.5! text-xs!"
                   type="button"
+                  aria-label={`Editar a ${estudiante.nombre_completo}`}
                   onClick={() => editar(estudiante)}
                 >
                   Editar
@@ -282,6 +284,7 @@ export default function Estudiantes() {
                 <button
                   className="boton-secundario px-3! py-1.5! text-xs!"
                   type="button"
+                  aria-label={`Ver la boleta de ${estudiante.nombre_completo}`}
                   onClick={() => setBoletaDe(estudiante)}
                 >
                   Boleta
@@ -289,6 +292,7 @@ export default function Estudiantes() {
                 <button
                   className="boton-peligro"
                   type="button"
+                  aria-label={`Eliminar a ${estudiante.nombre_completo}`}
                   onClick={() => {
                     setPorEliminar(estudiante)
                     setMatriculasHijas(null)

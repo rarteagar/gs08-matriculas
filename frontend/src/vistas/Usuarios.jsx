@@ -241,6 +241,7 @@ export default function Usuarios() {
                     <button
                       className="boton-secundario px-3! py-1.5! text-xs!"
                       type="button"
+                      aria-label={`Editar a ${usuario.nombre_completo}`}
                       onClick={() => editar(usuario)}
                     >
                       Editar
@@ -248,6 +249,7 @@ export default function Usuarios() {
                     <button
                       className="boton-peligro"
                       type="button"
+                      aria-label={`Eliminar a ${usuario.nombre_completo}`}
                       onClick={() => {
                         setPorEliminar(usuario)
                         setErrorEliminar('')

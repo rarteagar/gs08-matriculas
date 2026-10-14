@@ -224,6 +224,7 @@ export default function Matriculas() {
       <Avisos error={error} aviso={aviso} />
 
       <TablaRecurso
+        titulo="Matrículas"
         columnas={[
           '#',
           'Estudiante',
@@ -258,6 +259,7 @@ export default function Matriculas() {
                 <button
                   className="boton-secundario px-3! py-1.5! text-xs!"
                   type="button"
+                  aria-label={`Editar la matrícula de ${matricula.estudiante} en ${matricula.codigo_curso}`}
                   onClick={() => editar(matricula)}
                 >
                   Editar
@@ -265,6 +267,7 @@ export default function Matriculas() {
                 <button
                   className="boton-secundario px-3! py-1.5! text-xs!"
                   type="button"
+                  aria-label={`Ver las notas de ${matricula.estudiante} en ${matricula.codigo_curso}`}
                   onClick={() => setNotasDe(matricula)}
                 >
                   Notas
@@ -272,6 +275,7 @@ export default function Matriculas() {
                 <button
                   className="boton-peligro"
                   type="button"
+                  aria-label={`Eliminar la matrícula de ${matricula.estudiante} en ${matricula.codigo_curso}`}
                   onClick={() => {
                     setPorEliminar(matricula)
                     setErrorEliminar('')

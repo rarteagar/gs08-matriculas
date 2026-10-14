@@ -72,6 +72,41 @@ def test_si_redis_no_responde_queda_apagada(monkeypatch) -> None:
         cache.reiniciar()
 
 
+def test_un_fallo_no_apaga_la_cache_para_siempre(monkeypatch) -> None:
+    """Un fallo al primer intento se reintenta tras el enfriamiento (igual que la bitácora)."""
+    intentos = {"n": 0}
+
+    class RedisFalso:
+        def __init__(self, falla: bool) -> None:
+            self.falla = falla
+
+        def ping(self) -> bool:
+            if self.falla:
+                raise ConnectionError("redis caído")
+            return True
+
+    class Fabrica:
+        @staticmethod
+        def from_url(*argumentos, **opciones):
+            intentos["n"] += 1
+            return RedisFalso(falla=intentos["n"] <= 2)
+
+        def __getattr__(self, nombre):
+            return lambda *a, **k: None
+
+    monkeypatch.setattr(config, "redis_url", "redis://espia:6379/0")
+    monkeypatch.setattr(cache, "ENFRIAMIENTO_SEGUNDOS", 0)
+    monkeypatch.setattr(cache.redis, "Redis", Fabrica())
+    cache.reiniciar()
+    try:
+        assert cache.cliente() is None  # primer intento: falla
+        assert cache.cliente() is None  # reintenta y vuelve a fallar
+        assert cache.cliente() is not None  # tercer intento: conecta
+        assert cache.activa() is True
+    finally:
+        cache.reiniciar()
+
+
 def test_valor_corrupto_no_revienta(redis_falso) -> None:
     redis_falso.valores["prueba:corrupta"] = "esto-no-es-json"
     assert cache.obtener("prueba:corrupta") is None

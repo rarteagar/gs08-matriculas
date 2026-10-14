@@ -1,8 +1,8 @@
 # GS08 · Matrículas y Notas — SPA (React)
 
 Interfaz del sistema administrativo del Instituto Privado Horizonte. Consume el API REST
-del proyecto (FastAPI + PostgreSQL) y cubre las 30 operaciones del contrato: autenticación,
-panel, estudiantes con boleta, cursos, matrículas con notas, notas y usuarios.
+del proyecto (FastAPI + PostgreSQL) y cubre: autenticación, panel, estudiantes (con boleta y
+boleta archivada), cursos, matrículas con notas, notas, usuarios y la **bitácora** (auditoría).
 
 ## Cómo se ejecuta
 
@@ -28,18 +28,19 @@ URL absoluta embebida.
 
 ```
 src/
-  api.js                 cliente único del API: sesión, errores y las 30 operaciones
-  App.jsx                cabecera, menú por rol y rutas protegidas
+  api.js                 cliente único del API: sesión, errores y las operaciones que usa el SPA
+  App.jsx                cabecera, menú por rol, rutas protegidas y enlace «Saltar al contenido»
   main.jsx               punto de entrada (React + React Router + estilos)
-  estilos.css            hoja base: Tailwind y las clases de la aplicación
+  estilos.css            hoja base: Tailwind, clases de la aplicación y utilidades de accesibilidad
   hooks/
     usePaginado.js       listado paginado contra el API (búsqueda, filtros, páginas)
   componentes/
     Avisos.jsx           mensajes en línea e insignias de estado
-    Modal.jsx            diálogo propio y confirmación de operaciones destructivas
+    Modal.jsx            diálogo propio (con foco atrapado) y confirmación de operaciones destructivas
     TablaRecurso.jsx     tabla reutilizable con buscador, filtros y paginación
     Boleta.jsx           boleta del estudiante (nota de curso y promedio ponderado)
     Notas.jsx            notas de una matrícula (listar, registrar, editar, eliminar)
+    Bitacora.jsx         tabla de la bitácora documental (la alimenta la vista Auditoría)
   vistas/
     Login.jsx            inicio de sesión
     Panel.jsx            indicadores, top de cursos y últimos estudiantes
@@ -47,7 +48,8 @@ src/
     Cursos.jsx           catálogo con créditos y horas
     Matriculas.jsx       matrícula de un estudiante en un curso y periodo
     Usuarios.jsx         cuentas y roles (solo administrador)
-  pruebas/               pruebas unitarias y de componente (vitest + testing-library)
+    Auditoria.jsx        bitácora de operaciones y boleta archivada (solo administrador)
+  pruebas/               pruebas unitarias, de componente y de accesibilidad (vitest + testing-library)
 ```
 
 ## Convenciones
@@ -61,11 +63,19 @@ src/
   hacen («No, volver» / «Sí, eliminar»).
 - **Tablas y listados.** Se arma con `TablaRecurso` + `usePaginado` para que la búsqueda,
   los filtros y la paginación se comporten igual en todas las pantallas.
-- **Marcado accesible.** Cada campo con su `<label htmlFor>`, los avisos con `role="alert"`
-  o `role="status"`, los diálogos con `role="dialog"` y `aria-modal`, y cierre con `Escape`.
+- **Marcado accesible (D-30).** Cada campo con su `<label htmlFor>`, los avisos con `role="alert"`
+  o `role="status"`, y los diálogos con `role="dialog"`, `aria-modal` y `aria-labelledby`. Además:
+  el foco entra al diálogo al abrirlo, **queda atrapado** dentro (Tab y Shift+Tab dan la vuelta) y
+  al cerrarse vuelve al botón que lo abrió; Escape cierra; hay un enlace **«Saltar al contenido»**;
+  al cambiar de sección el foco va al contenido y la sección se anuncia (`aria-live`); el menú
+  marca la sección actual con `aria-current="page"`; las tablas llevan `<caption>` para lectores
+  de pantalla y `scope="col"` en las cabeceras; los botones de cada fila dicen a quién afectan
+  («Editar a Huamán, María»); los estados de carga usan `aria-busy`; el foco siempre es visible
+  (`:focus-visible`) y se respeta `prefers-reduced-motion`.
 - **Estilos.** Clases de utilidad de Tailwind en el marcado y las clases propias de la
-  aplicación (`tarjeta`, `campo`, `etiqueta`, `boton-primario`, `tabla`, `insignia-*`)
-  definidas en `estilos.css`; no se agregan hojas de estilo nuevas.
+  aplicación (`tarjeta`, `campo`, `etiqueta`, `boton-primario`, `tabla`, `insignia-*`) más las
+  utilidades de accesibilidad (`salto-contenido`, `solo-lectores`) definidas en `estilos.css`;
+  no se agregan hojas de estilo nuevas.
 - **Componentes.** Un componente por archivo, con `PascalCase`; los ganchos propios con
   `use` + `camelCase`. Los componentes reutilizables viven en `componentes/`, las pantallas
   en `vistas/`.
@@ -74,8 +84,19 @@ src/
 
 ## Pruebas
 
-`npm run test:unit` corre las pruebas de `src/pruebas/`: el cliente del API (consulta, token y
-traducción de errores), la pantalla de acceso y los componentes de aviso y confirmación.
+`npm run test:unit` corre las **25 pruebas** de `src/pruebas/`: el cliente del API (consulta,
+token, traducción de errores y el olvido de la sesión cuando el API responde 401), la pantalla de
+acceso, los componentes de aviso y confirmación, la pantalla de auditoría (incluido el caso de la
+consulta fallida, que **no** debe decir «la bitácora está apagada») y una **batería de accesibilidad** (`accesibilidad.test.jsx`) que pasa
+`axe-core` —el mismo motor del addon a11y de Storybook— sobre el formulario de entrada, la tabla
+de listado, el diálogo abierto y la lista de estudiantes con datos, y comprueba con teclado que el
+foco entra al diálogo, no se escapa con Tab, vuelve al cerrarse con Escape y que el menú marca la
+sección actual. En jsdom no se pueden medir colores, así que el contraste se mide aparte contra el
+CSS compilado: **14/14 pares de texto cumplen AA (4.5:1)** y el anillo de foco da 5.93:1 (mínimo
+3:1 para componentes). Los pares medidos: texto del cuerpo 13.37, tarjeta 14.66, texto secundario
+4.77, etiquetas 7.56, encabezado de tabla 4.77, enlace activo 7.05, botón principal 5.85, botón
+secundario 10.34, botón de peligro 6.06, aviso de error 5.51, aviso correcto 7.19, insignia activa
+6.68, retirado 6.41 e inactivo 8.40.
 
 `npm run e2e` corre las pruebas de extremo a extremo de `cypress/e2e/` contra el stack
 levantado (`docker compose up -d`, el SPA en `http://localhost:8080`):
@@ -100,9 +121,10 @@ nativos del navegador: si aparece un `alert`, `confirm` o `prompt`, fallan.
 
 `npm run storybook` levanta el Storybook en `http://localhost:6006` con las historias de
 `src/componentes/*.stories.jsx`: mensajes e insignias, diálogos y confirmaciones, la tabla de
-listado (con datos, vacía y cargando), la boleta y las notas de una matrícula. Cada historia
-trae su documentación automática, y las que consultan el API usan una respuesta simulada con
-los datos del seed. `npm run build-storybook` genera la versión estática en `storybook-static/`.
+listado (con datos, vacía y cargando), la boleta, las notas de una matrícula y la **bitácora**
+(con registros, vacía y cargando). Cada historia trae su documentación automática, y las que
+consultan el API usan una respuesta simulada con los datos del seed. `npm run build-storybook`
+genera la versión estática en `storybook-static/`.
 
 ## Despliegue
 

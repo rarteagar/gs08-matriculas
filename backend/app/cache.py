@@ -7,6 +7,7 @@
 # ============================================================
 import json
 import logging
+import time
 from typing import Any
 
 import redis
@@ -15,19 +16,26 @@ from app.config import config
 
 log = logging.getLogger("gs08.cache")
 
+# Igual que la bitácora: un fallo al primer uso no apaga la caché para siempre.
+ENFRIAMIENTO_SEGUNDOS = 30
+
 _cliente: Any = None
 _deshabilitado = False
+_enfriamiento = 0.0
 CLAVE_PANEL = "gs08:panel"
 
 
 def cliente():
     """Devuelve el cliente de Redis o None si la caché está apagada."""
-    global _cliente, _deshabilitado
-    if _cliente is not None or _deshabilitado:
+    global _cliente, _deshabilitado, _enfriamiento
+    if _cliente is not None:
         return _cliente
     if not config.redis_url:
         _deshabilitado = True
+        _enfriamiento = float("inf")
         log.info("caché apagada (sin REDIS_URL)")
+        return None
+    if _deshabilitado and time.monotonic() < _enfriamiento:
         return None
     try:
         conexion = redis.Redis.from_url(
@@ -38,24 +46,28 @@ def cliente():
         )
         conexion.ping()
         _cliente = conexion
+        _deshabilitado = False
         log.info("caché conectada", extra={"servidor": config.redis_url})
     except Exception as exc:  # redis.exceptions.RedisError y problemas de red
         _deshabilitado = True
-        log.warning("caché apagada: Redis no responde (%s)", exc)
+        _enfriamiento = time.monotonic() + ENFRIAMIENTO_SEGUNDOS
+        log.warning("caché apagada: Redis no responde (%s); se reintenta en %s s", exc, ENFRIAMIENTO_SEGUNDOS)
     return _cliente
 
 
 def forzar(conexion: Any) -> None:
     """Para las pruebas: inyecta un cliente (o None para apagarla)."""
-    global _cliente, _deshabilitado
+    global _cliente, _deshabilitado, _enfriamiento
     _cliente = conexion
     _deshabilitado = conexion is None
+    _enfriamiento = 0.0
 
 
 def reiniciar() -> None:
-    global _cliente, _deshabilitado
+    global _cliente, _deshabilitado, _enfriamiento
     _cliente = None
     _deshabilitado = False
+    _enfriamiento = 0.0
 
 
 def activa() -> bool:

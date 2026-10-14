@@ -8,6 +8,7 @@
 # se registra la advertencia una vez y se sigue.
 # ============================================================
 import logging
+import time
 from datetime import UTC, datetime
 from typing import Any
 
@@ -19,20 +20,28 @@ log = logging.getLogger("gs08.mongo")
 
 COLECCION_BITACORA = "bitacora"
 COLECCION_BOLETAS = "boletas_snapshot"
+# Si la primera conexión falla, la bitácora no se apaga para siempre: se reintenta
+# pasado este tiempo. Sin esto, un fallo de un segundo al arrancar dejaba al proceso
+# sin bitácora hasta el próximo despliegue (pasó en la verificación del 13/10/2026).
+ENFRIAMIENTO_SEGUNDOS = 30
 
 _cliente: Any = None
 _base: Any = None
 _deshabilitado = False
+_enfriamiento = 0.0
 
 
 def base():
     """Devuelve la base documental o None si está apagada."""
-    global _cliente, _base, _deshabilitado
-    if _base is not None or _deshabilitado:
+    global _cliente, _base, _deshabilitado, _enfriamiento
+    if _base is not None:
         return _base
     if not config.mongo_url:
         _deshabilitado = True
+        _enfriamiento = float("inf")  # sin URL no hay nada que reintentar
         log.info("bitácora apagada (sin MONGO_URL)")
+        return None
+    if _deshabilitado and time.monotonic() < _enfriamiento:
         return None
     try:
         conexion = MongoClient(config.mongo_url, serverSelectionTimeoutMS=1500, tz_aware=True)
@@ -40,10 +49,16 @@ def base():
         _cliente = conexion
         _base = conexion[config.mongo_bd]
         _preparar_indices(_base)
+        _deshabilitado = False
         log.info("segunda base conectada", extra={"base": config.mongo_bd})
     except Exception as exc:
         _deshabilitado = True
-        log.warning("bitácora apagada: Mongo no responde (%s)", exc)
+        _enfriamiento = time.monotonic() + ENFRIAMIENTO_SEGUNDOS
+        log.warning(
+            "bitácora apagada: Mongo no responde (%s); se reintenta en %s s",
+            exc,
+            ENFRIAMIENTO_SEGUNDOS,
+        )
     return _base
 
 
@@ -55,17 +70,19 @@ def _preparar_indices(una_base) -> None:
 
 def forzar(conexion: Any, una_base: Any = None) -> None:
     """Para las pruebas: inyecta un cliente/base (o None para apagarla)."""
-    global _cliente, _base, _deshabilitado
+    global _cliente, _base, _deshabilitado, _enfriamiento
     _cliente = conexion
     _base = una_base if una_base is not None else (conexion[config.mongo_bd] if conexion is not None else None)
     _deshabilitado = _base is None
+    _enfriamiento = 0.0
 
 
 def reiniciar() -> None:
-    global _cliente, _base, _deshabilitado
+    global _cliente, _base, _deshabilitado, _enfriamiento
     _cliente = None
     _base = None
     _deshabilitado = False
+    _enfriamiento = 0.0
 
 
 def activa() -> bool:

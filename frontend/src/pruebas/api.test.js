@@ -45,11 +45,33 @@ describe('cliente del API', () => {
     await expect(api.usuarios()).rejects.toThrow('Tu rol no tiene permiso para esta operación.')
   })
 
-  it('cubre las operaciones del contrato (30, una de ellas es la salud duplicada)', () => {
-    // El contrato expone /health y /api/v1/health con la misma operación, así que
-    // el cliente cubre 29 métodos distintos y ninguna ruta queda sin consumir.
+  it('olvida la sesión vencida cuando el API responde 401', async () => {
+    localStorage.setItem('gs08.token', 'token-vencido')
+    global.fetch.mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: async () => '{"detail":"La sesión expiró. Vuelve a iniciar sesión."}',
+    })
+    await expect(api.panel()).rejects.toThrow('La sesión expiró. Vuelve a iniciar sesión.')
+    expect(localStorage.getItem('gs08.token')).toBeNull()
+  })
+
+  it('no borra la sesión cuando el 401 viene del propio acceso', async () => {
+    localStorage.setItem('gs08.token', 'token-de-otra-sesion')
+    global.fetch.mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: async () => '{"detail":"Usuario o clave incorrectos."}',
+    })
+    await expect(api.login('admin', 'mala')).rejects.toThrow('Usuario o clave incorrectos.')
+    expect(localStorage.getItem('gs08.token')).toBe('token-de-otra-sesion')
+  })
+
+  it('cubre las operaciones del contrato que usa el SPA (31 métodos)', () => {
+    // El contrato expone /health y /api/v1/health con la misma operación, así que el
+    // cliente cubre 31 métodos distintos y ninguna ruta que el SPA use queda sin consumir.
     const operaciones = Object.values(api)
-    expect(operaciones).toHaveLength(29)
+    expect(operaciones).toHaveLength(31)
     operaciones.forEach((operacion) => expect(typeof operacion).toBe('function'))
 
     const esperadas = [
@@ -61,6 +83,7 @@ describe('cliente del API', () => {
       'editarEstudiante',
       'eliminarEstudiante',
       'boleta',
+      'boletaArchivada',
       'cursos',
       'crearCurso',
       'editarCurso',
@@ -77,6 +100,7 @@ describe('cliente del API', () => {
       'crearUsuario',
       'editarUsuario',
       'eliminarUsuario',
+      'auditoria',
     ]
     esperadas.forEach((nombre) => expect(api[nombre]).toBeTypeOf('function'))
   })

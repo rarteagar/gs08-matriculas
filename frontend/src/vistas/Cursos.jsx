@@ -210,6 +210,7 @@ export default function Cursos() {
       <Avisos error={error} aviso={aviso} />
 
       <TablaRecurso
+        titulo="Cursos"
         columnas={[
           'Código',
           'Curso',
@@ -232,6 +233,7 @@ export default function Cursos() {
                 <button
                   className="boton-secundario px-3! py-1.5! text-xs!"
                   type="button"
+                  aria-label={`Editar el curso ${curso.nombre}`}
                   onClick={() => editar(curso)}
                 >
                   Editar
@@ -239,6 +241,7 @@ export default function Cursos() {
                 <button
                   className="boton-peligro"
                   type="button"
+                  aria-label={`Eliminar el curso ${curso.nombre}`}
                   onClick={() => {
                     setPorEliminar(curso)
                     setMatriculasHijas(null)

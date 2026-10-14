@@ -54,3 +54,54 @@ body {
 .insignia-inactivo {
   @apply inline-flex items-center rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700;
 }
+
+/* ------------------------------------------------------------
+   Accesibilidad (D-30). Lo que se ve en pantalla y lo que solo
+   oyen los lectores de pantalla.
+   ------------------------------------------------------------ */
+
+/* Foco siempre visible: quien navega con teclado tiene que ver dónde está. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  @apply outline-2 outline-offset-2 outline-sky-700;
+}
+
+/* Enlace «Saltar al contenido»: oculto hasta que alguien tabula hasta él. */
+.salto-contenido {
+  position: absolute;
+  left: -9999px;
+  top: 0.5rem;
+  z-index: 60;
+  @apply rounded-lg border border-sky-700 bg-white px-4 py-2 text-sm font-medium text-sky-800 shadow-lg;
+}
+.salto-contenido:focus {
+  left: 1rem;
+}
+
+/* Texto solo para lectores de pantalla (títulos de tabla, anuncios de sección). */
+.solo-lectores {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+/* Quien pidió menos movimiento en su sistema, no recibe transiciones. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Contenedor principal: recibe el foco al cambiar de sección, sin anillo visible. */
+main:focus {
+  outline: none;
+}

@@ -461,7 +461,7 @@ flowchart LR
 5. **Logs centralizados sin Promtail:** el API empuja el JSON a Loki por su API HTTP, así funciona igual en
    Windows (Docker Desktop) y en el VPS, sin montar el socket de Docker.
 
-**Medido el 13/10/2026** (stack local, `docs/decisiones.md` D-28 y D-29): **119 pruebas y 90 % de cobertura**; caché
+**Medido el 14/10/2026** (stack local, `docs/decisiones.md` D-28, D-29 y D-31): **121 pruebas y 90 % de cobertura**; caché
 del panel **54,2 ms → 13,5 ms (4,0x)** con 20 000 estudiantes y 20 000 matrículas; bitácora con las escrituras
 reales del recorrido y **sin la contraseña**; Loki con la serie `{servicio="gs08-api"}`; y la autenticación OAuth2
 con **16 scopes** (token restringido → 403 en lo que no le toca).
