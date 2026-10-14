@@ -5,7 +5,7 @@
 
 **Regla de este manual:** cada afirmación cita el archivo o el comando del que sale, y **nada que no exista
 se documenta como existente**. Lo que todavía no está implementado va marcado como *«pendiente T\<xx\>»*.
-**Actualizado el 22/09/2026**, con el API real, el SPA y el cluster ya entregados.
+**Actualizado el 13/10/2026**: el frontend se migró de Vue 3 a **React 19 + Vite + Tailwind** y ahora consume las **30 operaciones** del contrato (D-27). El API real, el SPA y el cluster ya estaban entregados el 22/09/2026.
 
 ## Índice
 
@@ -34,7 +34,7 @@ entregados, y el recorrido de extremo a extremo sale verde por el proxy (**39 OK
 | Autenticación, panel, estudiantes, cursos, matrículas | ✅ **funcionando en el compose real**: `POST /api/v1/auth/login` → 200 + token; `/api/v1/dashboard` → **12 / 7 / 23 / 1**; `?q=45123456` → 1 fila con acentos correctos; `?q=huaman` = `?q=Huamán` = `?q=HUAMAN` → 1/1/1 | salidas reales en §2.1 |
 | **Notas y boleta** | ✅ **funcionando:** en el recorrido E2E del smoke, 3 notas → boleta con **16.00** y promedio ponderado | `docs/qa/evidencia/smoke-api-20260922-000358.txt` |
 | **`POST /api/v1/matriculas` y `POST /api/v1/usuarios`** | ✅ **cerrados:** los dos `500` por `AmbiguousParameter` (BUG-08/BUG-09) quedaron sin reproducir en la corrida verde de 39/39 | `docs/qa/evidencia/api-500-ambiguousparameter.txt` (el bug) · smoke 39/39 (el cierre) |
-| **SPA Vue** | ✅ **existe: 4 vistas** (login, panel, estudiantes, matrículas) servidas por nginx en `:8080` (`9c95d8d`) | `curl -s -o /dev/null -w '%{http_code} %{content_type}' http://localhost:8080/` → `200 text/html` |
+| **SPA React** | ✅ **existe: 6 vistas** (login, panel, estudiantes, cursos, matrículas, usuarios) más los diálogos de boleta y notas, servidos por nginx en `:8080` | `curl -s -o /dev/null -w '%{http_code} %{content_type}' http://localhost:8080/` → `200 text/html` |
 | Contenedores, red, balanceo, failover | ✅ **funcionando** | `docker compose ps` (6 contenedores `healthy`), `verificar_stack.py` → 9 OK exit 0 |
 | Esquema de datos + reglas en la base | ✅ **funcionando**, y **los dos caminos coinciden** (D-14 cerrado) | `verificar_modelo.sql` → **54 OK** y `verificar_notas.sql` → **32 OK**; `bash db/verificacion/comparar_con_alembic.sh` → **exit 0**, esquema y datos idénticos entre `db/init/` y Alembic |
 | Observabilidad (Prometheus + Grafana) | ✅ **funcionando con el tráfico real** (paneles 8 y 9 sin el ruido del scrape, `d42fcfc`) | p95 **0,095 s**; las dos instancias con carga (1,6 / 2,4 req/s) |
@@ -220,7 +220,7 @@ prometheus-fastapi-instrumentator==8.1.0 · pydantic-settings==2.15.0 · alembic
 **Verificación de contraseñas:** `bcrypt==4.2.1` (PyPI) — es la librería con la que se comprobó que el hash
 `$2y$` del seed corresponde a `Admin123!` (`docs/analisis/evidencia/hash-legacy-python-bcrypt.txt`).
 
-**Frontend:** Vue 3 + Vite + Tailwind, **sin Pinia ni librería de componentes** (D-16).
+**Frontend:** React 19 + Vite + Tailwind, **sin librería de estado ni de componentes** (D-16, ajustada por D-27).
 
 ---
 

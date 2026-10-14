@@ -73,7 +73,7 @@ services:
     container_name: gs08-api-b
     networks: [gs08]
 
-  # ---------------- Frontend Vue + nginx (proxy inverso) ----------------
+  # ---------------- Frontend React + nginx (proxy inverso) ----------------
   web:
     build:
       context: ./frontend

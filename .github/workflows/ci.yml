@@ -130,7 +130,7 @@ jobs:
         run: pytest -q --cov=app --cov-report=term-missing --cov-fail-under=60
 
   # ---------------------------------------------------------
-  # 3. Frontend Vue: lint + pruebas + build de produccion
+  # 3. Frontend React: lint + pruebas + build de produccion
   # ---------------------------------------------------------
   frontend:
     name: Frontend · lint, pruebas y compilación (eslint + vitest + build)

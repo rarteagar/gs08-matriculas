@@ -34,7 +34,7 @@ Servicios y puertos:
 
 | Servicio | Contenedor | URL / puerto en el host | Para que |
 |---|---|---|---|
-| web (nginx) | gs08-web | http://localhost:8080 | SPA Vue (todo entra por aqui) |
+| web (nginx) | gs08-web | http://localhost:8080 | SPA React (todo entra por aqui) |
 | web (nginx) | gs08-web | http://localhost:8080/api/v1/... | proxy inverso -> API (balanceado) |
 | web (nginx) | gs08-web | http://localhost:8080/healthz | healthcheck del contenedor |
 | api | gs08-api | http://localhost:8000 | API FastAPI directa (Swagger en /docs) |

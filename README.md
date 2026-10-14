@@ -4,7 +4,7 @@
 **Entregable:** TD-01 de `docs/backlog-sprints.md` · **Redacta:** @documentador
 
 Reimplementación del sistema administrativo **PHP + MySQL** del curso Web III (`legacy/`) sobre un stack
-moderno: **API FastAPI + PostgreSQL 16 + SPA Vue 3**, en contenedores, con CI/CD, Kubernetes local y
+moderno: **API FastAPI + PostgreSQL 16 + SPA React 19**, en contenedores, con CI/CD, Kubernetes local y
 observabilidad. El legacy **no se migra**: se traduce su modelo de datos y su UX, y se le agregan las
 **notas**, que el sistema original no tenía.
 
@@ -99,7 +99,7 @@ exacto del CI (`ruff check . && ruff format --check . && pytest -q --cov=app --c
 | Instrumentación Prometheus | `prometheus-fastapi-instrumentator==8.1.0` |
 | Configuración | `pydantic-settings==2.15.0` |
 | Migraciones | `alembic==1.20.0` |
-| Frontend | Vue 3 + Vite + Tailwind (`frontend/package.json`): **4 vistas** (login, panel, estudiantes, matrículas) |
+| Frontend | React 19 + Vite + Tailwind (`frontend/package.json`): **6 vistas** (login, panel, estudiantes, cursos, matrículas, usuarios) y los diálogos de boleta y notas; consumen las **30 operaciones** del contrato (D-27) |
 
 ---
 
@@ -112,7 +112,7 @@ gs08-matriculas/
 ├── .env.example                 variables con valores por defecto (compose funciona sin .env)
 ├── .github/workflows/           ci.yml (PR/push) y cd.yml (GHCR + despliegue guardado)
 ├── backend/                     API FastAPI: 28 endpoints, Alembic y tests (57 pruebas, 87,29 % cobertura)
-├── frontend/                    SPA Vue 3 de 4 vistas (src/) + Dockerfile y config de nginx
+├── frontend/                    SPA React de 6 vistas (src/) + Dockerfile y config de nginx
 │   └── nginx/default.conf.template   SPA, proxy /api/, balanceo, cabeceras de seguridad
 ├── db/
 │   ├── init/                    scripts que PostgreSQL ejecuta UNA vez al crear el volumen
