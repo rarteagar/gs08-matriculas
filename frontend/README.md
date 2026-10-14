@@ -13,6 +13,10 @@ npm run build          # compila a dist/ (lo que se sirve en producción)
 npm run lint           # revisión estática con eslint
 npm run test:unit      # pruebas con vitest
 npm run test:watch     # pruebas en modo vigilante
+npm run storybook      # documentación de componentes en http://localhost:6006
+npm run build-storybook # compila el Storybook a storybook-static/ (para publicarlo)
+npm run e2e            # recorrido completo con cypress (necesita credenciales, ver abajo)
+npm run e2e:open       # abre el panel de Cypress para correr las pruebas a mano
 ```
 
 En desarrollo, `npm run dev` envía `/api` al API local (`http://localhost:8000`) mediante el
@@ -71,8 +75,34 @@ src/
 ## Pruebas
 
 `npm run test:unit` corre las pruebas de `src/pruebas/`: el cliente del API (consulta, token y
-traducción de errores), la pantalla de acceso y los componentes de aviso y confirmación. Para
-el recorrido completo de extremo a extremo se usa el plan de pruebas del proyecto.
+traducción de errores), la pantalla de acceso y los componentes de aviso y confirmación.
+
+`npm run e2e` corre las pruebas de extremo a extremo de `cypress/e2e/` contra el stack
+levantado (`docker compose up -d`, el SPA en `http://localhost:8080`):
+
+- `acceso.cy.js`: el formulario de acceso, el rechazo de credenciales incorrectas con el
+  mensaje del backend y que ninguna ruta interna se abra sin sesión.
+- `recorrido.cy.js`: el recorrido completo — panel, búsqueda sin tildes, alta de estudiante,
+  matrícula, tres notas, boleta con promedio ponderado — y la limpieza de lo creado.
+
+**Las credenciales no viven en el repositorio.** Las pruebas que entran al sistema las leen
+del entorno:
+
+```bash
+CYPRESS_usuario=admin CYPRESS_clave=… npm run e2e
+```
+
+Se puede dejar un `cypress.env.json` local con esas dos claves (está ignorado por git) o
+exportarlas en la sesión. Ambas pruebas verifican, además, que la aplicación no use diálogos
+nativos del navegador: si aparece un `alert`, `confirm` o `prompt`, fallan.
+
+## Documentación de componentes (Storybook)
+
+`npm run storybook` levanta el Storybook en `http://localhost:6006` con las historias de
+`src/componentes/*.stories.jsx`: mensajes e insignias, diálogos y confirmaciones, la tabla de
+listado (con datos, vacía y cargando), la boleta y las notas de una matrícula. Cada historia
+trae su documentación automática, y las que consultan el API usan una respuesta simulada con
+los datos del seed. `npm run build-storybook` genera la versión estática en `storybook-static/`.
 
 ## Despliegue
 

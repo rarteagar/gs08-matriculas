@@ -10,6 +10,10 @@ WORKDIR /app
 # Base de la API embebida en el bundle de Vite (mismo origen -> nginx hace de proxy)
 ARG VITE_API_BASE_URL=/api/v1
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+# Cypress y Storybook son dependencias de desarrollo para probar y documentar en
+# local: sus binarios no hacen falta para compilar el SPA ni para la imagen final.
+ENV CYPRESS_INSTALL_BINARY=0
+ENV STORYBOOK_DISABLE_TELEMETRY=1
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY . .

@@ -22,7 +22,13 @@ node_modules/
 dist/
 coverage/
 .vite/
+storybook-static/
 npm-debug.log*
+
+# --- Pruebas de extremo a extremo ---
+cypress.env.json
+cypress/videos/
+cypress/screenshots/
 
 # --- Docker / k8s ---
 *.tar

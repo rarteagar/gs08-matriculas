@@ -146,6 +146,9 @@ jobs:
 
       - name: Instalar dependencias
         working-directory: frontend
+        env:
+          # El binario de Cypress (~200 MB) no hace falta para lint, pruebas y build.
+          CYPRESS_INSTALL_BINARY: '0'
         run: npm ci --no-audit --no-fund
 
       - name: Revisión estática (eslint)
