@@ -27,6 +27,17 @@ class Configuracion(BaseSettings):
     algoritmo_token: str = "HS256"
     origen_cors: str = "http://localhost:5173,http://localhost:8080"
 
+    # --- Segunda base (documental) y cache ---
+    # Vacíos = la pieza queda apagada y el API funciona igual: así el proyecto no
+    # depende de tener Mongo o Redis levantados para responder.
+    mongo_url: str = ""
+    mongo_bd: str = "gs08_bitacora"
+    redis_url: str = ""
+    cache_ttl_segundos: int = 60
+    # Si tiene valor, los logs JSON también se envían a Loki (logging centralizado).
+    loki_url: str = ""
+    servicio: str = "gs08-api"
+
     @property
     def origenes_cors(self) -> list[str]:
         return [o.strip() for o in self.origen_cors.split(",") if o.strip()]

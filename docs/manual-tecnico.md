@@ -5,7 +5,7 @@
 
 **Regla de este manual:** cada afirmación cita el archivo o el comando del que sale, y **nada que no exista
 se documenta como existente**. Lo que todavía no está implementado va marcado como *«pendiente T\<xx\>»*.
-**Actualizado el 13/10/2026**: el frontend se migró de Vue 3 a **React 19 + Vite + Tailwind** y ahora consume las **30 operaciones** del contrato (D-27). El API real, el SPA y el cluster ya estaban entregados el 22/09/2026.
+**Actualizado el 13/10/2026**: el frontend se migró de Vue 3 a **React 19 + Vite + Tailwind** y ahora consume las **30 operaciones** del contrato (D-27); y al API se le añadieron **MongoDB, Redis, GraphQL y logging centralizado** (D-28), con lo que el contrato pasa a **19 rutas / 34 operaciones** (v0.2.0). El API real, el SPA y el cluster ya estaban entregados el 22/09/2026.
 
 ## Índice
 
@@ -30,7 +30,7 @@ entregados, y el recorrido de extremo a extremo sale verde por el proxy (**39 OK
 
 | Capa | Estado | Evidencia |
 |---|---|---|
-| **API FastAPI real** | ✅ **existe, corre y está probado de punta a punta: 28 endpoints publicados**, recorrido completo verde por el proxy | `bash scripts/smoke_api.sh --e2e` → **39 OK, 0 fallas, 0 bloqueadas, exit 0** (`docs/qa/evidencia/smoke-api-20260922-000358.txt`) |
+| **API FastAPI real** | ✅ **existe, corre y está probado de punta a punta: 19 rutas / 34 operaciones** (`/openapi.json` v0.2.0), recorrido completo verde por el proxy | `bash scripts/smoke_api.sh --e2e` → **39 OK, 0 fallas, 0 bloqueadas, exit 0** (`docs/qa/evidencia/smoke-api-20260922-000358.txt`); capa nueva: **103 pruebas, 89 % de cobertura** |
 | Autenticación, panel, estudiantes, cursos, matrículas | ✅ **funcionando en el compose real**: `POST /api/v1/auth/login` → 200 + token; `/api/v1/dashboard` → **12 / 7 / 23 / 1**; `?q=45123456` → 1 fila con acentos correctos; `?q=huaman` = `?q=Huamán` = `?q=HUAMAN` → 1/1/1 | salidas reales en §2.1 |
 | **Notas y boleta** | ✅ **funcionando:** en el recorrido E2E del smoke, 3 notas → boleta con **16.00** y promedio ponderado | `docs/qa/evidencia/smoke-api-20260922-000358.txt` |
 | **`POST /api/v1/matriculas` y `POST /api/v1/usuarios`** | ✅ **cerrados:** los dos `500` por `AmbiguousParameter` (BUG-08/BUG-09) quedaron sin reproducir en la corrida verde de 39/39 | `docs/qa/evidencia/api-500-ambiguousparameter.txt` (el bug) · smoke 39/39 (el cierre) |
@@ -56,7 +56,7 @@ BUG-08/BUG-09 quedaron verdes en la corrida de 39/39.
 
 ## 2. Contrato de la API
 
-### 2.1 Lo que existe HOY: el API real (28 endpoints)
+### 2.1 Lo que existe HOY: el API real (34 operaciones)
 
 Contrato real, enumerado desde su propio OpenAPI (**API del compose, por el proxy en `:8080`**):
 
@@ -154,7 +154,31 @@ Fuente: `docs/analisis/modelo-datos.md` §4 (casos de uso CU-01…CU-15), `docs/
 | `PUT·DELETE /api/v1/notas/{id}` | editar / eliminar nota | 200 · 204 | — | ⬜ |
 | `GET /api/v1/estudiantes/{id}/boleta?periodo=` | boleta con nota por curso y promedio ponderado por créditos | 200: `14/16/18 → 16.00`; curso sin notas → `nota: null` (no cuenta como 0) | C-27, C-28, C-29 | ✅ **funcionando**: estudiante 1 → C101 **16.00**, **promedio ponderado 13.43** = (16×4 + 10×3) ÷ 7 |
 
-### 2.3 Reglas transversales del contrato
+### 2.3 Capa de rúbrica del API: MongoDB, Redis, GraphQL y logging (D-28)
+
+El núcleo sigue siendo FastAPI + PostgreSQL 16; encima se añadieron cuatro capas para el ítem «Backend seguro y
+eficiente — APIs + BD híbridas» de la consigna. Todas **degradan solas**: si la pieza no está configurada o no
+responde, el API contesta igual (el CI solo trae PostgreSQL, y sigue verde).
+
+| Pieza | Dónde vive | Qué hace | Cómo se comprueba |
+|---|---|---|---|
+| **MongoDB** (segunda base) | `app/mongo.py`, base `gs08_bitacora`, colecciones `bitacora` y `boletas_snapshot` | La **bitácora** guarda cada escritura (`POST`/`PUT`/`DELETE` de `/api/v1/...`) con usuario, rol, ruta, estado, demora y cuerpo **sin credenciales**; la boleta emitida se archiva como documento | `GET /api/v1/auditoria` (solo admin) y `GET /api/v1/estudiantes/{id}/boleta/archivada` |
+| **Redis** (caché) | `app/cache.py`, clave `gs08:panel`, TTL 60 s | cachea el panel (3 consultas agregadas) y el middleware la **invalida** en cada escritura correcta | `docker exec gs08-redis redis-cli keys 'gs08:*'` / `ttl gs08:panel` |
+| **GraphQL** | `app/graphql.py`, montado en `/graphql` (GraphiQL incluido) | Consultas `panel`, `estudiantes(q)`, `estudiante(id)`, `cursos(q)`, `matriculas(estudianteId, periodo)` y `boleta(estudianteId, periodo)`, con la **misma** fórmula de boleta que el REST (`app/boleta.py`) | `POST /graphql` con el token; sin token → **401** |
+| **Logging centralizado** | `app/observabilidad.py` | Cada petición sale en **una línea JSON** con `pedido_id`, usuario, ruta, estado y `demora_ms`; la respuesta lleva la cabecera `X-Request-ID`; con `LOKI_URL` el mismo log se empuja a Loki y se ve en Grafana | `docker logs gs08-api` y Grafana → Explore → Loki |
+
+**Rutas nuevas:** el contrato pasa de 16 rutas / 30 operaciones a **19 rutas / 34 operaciones** (`/openapi.json`,
+v0.2.0): `GET /api/v1/auditoria`, `GET /api/v1/estudiantes/{id}/boleta/archivada` y `POST /graphql`.
+
+**Quién escribe la bitácora:** el middleware, no cada endpoint. Así ninguna operación nueva queda sin auditar por
+olvido, y la credencial nunca se guarda: los campos que suenan a clave (`password`, `token`, `secret`…) se
+sustituyen por `***` antes de tocar Mongo (`tests/test_observabilidad.py::test_el_login_no_guarda_la_contrasena_en_la_bitacora`).
+
+**Auditoría de la caché medida (13/10/2026):** con 20 000 estudiantes y 20 000 matrículas, el panel pasa de
+**54,2 ms a 13,5 ms (4,0x)**; con el seed de 12 estudiantes la diferencia es de ~2 ms, porque las consultas
+agregadas ya eran baratas. La caché no es un adorno: se mide y se reporta lo que da.
+
+### 2.4 Reglas transversales del contrato
 
 | Regla | Detalle | Fuente |
 |---|---|---|
@@ -168,7 +192,7 @@ Fuente: `docs/analisis/modelo-datos.md` §4 (casos de uso CU-01…CU-15), `docs/
 | **Fechas** | `timestamptz` en ISO-8601 con zona; la API responde en `America/Lima` | idem |
 | **Salud y métricas** | `/api/v1/health` por el proxy; `/metrics` **directo** en `:8000`; nginx **404** en `/health` y `/metrics` | D-17 |
 
-### 2.4 Requisitos que la infraestructura le impone al código (contrato con @dev)
+### 2.5 Requisitos que la infraestructura le impone al código (contrato con @dev)
 
 Fuente: `docs/devops/plan-contenedores-ci.md` §3. Si el código no cumple esto, **el stack no arranca**:
 
@@ -228,20 +252,25 @@ prometheus-fastapi-instrumentator==8.1.0 · pydantic-settings==2.15.0 · alembic
 
 ### 4.1 Servicios del compose
 
-`docker compose config --services` → `db`, `api`, `api-b`, `web` (+ `prometheus`, `grafana` con `--profile obs`).
+`docker compose config --services` → `db`, `mongo`, `redis`, `api`, `api-b`, `web` (+ `prometheus`, `grafana`,
+`loki` con `--profile obs`).
 
 | Servicio | Contenedor | Imagen | Puerto al host | Notas |
 |---|---|---|---|---|
 | `db` | `gs08-db` | `postgres:16.15-alpine3.24` | `5432` | volumen `pgdata`; `POSTGRES_INITDB_ARGS: --encoding=UTF8 --locale=C`; healthcheck `pg_isready` |
-| `api` | `gs08-api` | `gs08-api:local` (build `backend/`) | `8000` | depende de `db` en estado `healthy` |
+| `mongo` | `gs08-mongo` | `mongo:8.0` | `27017` | volumen `mongodata`; base `gs08_bitacora`; healthcheck `mongosh db.adminCommand('ping')`; segunda base de la rúbrica (bitácora y boletas archivadas) |
+| `redis` | `gs08-redis` | `redis:8-alpine` | `6379` | volumen `redisdata`; `--appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru`; healthcheck `redis-cli ping` |
+| `api` | `gs08-api` | `gs08-api:local` (build `backend/`) | `8000` | depende de `db`, `mongo` y `redis` en estado `healthy` |
 | `api-b` | `gs08-api-b` | la misma imagen | — | segunda instancia para el balanceo; **sin puerto al host** a propósito |
 | `web` | `gs08-web` | `gs08-web:local` (build `frontend/`) | `8080` | nginx; `API_UPSTREAM` con las dos instancias |
 | `prometheus` | `gs08-prometheus` | `prom/prometheus:v3.13.3` | `9090` | perfil `obs`; retención 15 d; `--web.enable-lifecycle` |
-| `grafana` | `gs08-grafana` | `grafana/grafana:12.4.11` | `3000` | perfil `obs`; dashboard y datasource provisionados |
+| `grafana` | `gs08-grafana` | `grafana/grafana:12.4.11` | `3000` | perfil `obs`; dashboard y datasources (Prometheus y Loki) provisionados |
+| `loki` | `gs08-loki` | `grafana/loki:3.5.2` | `3100` | perfil `obs`; volumen `lokidata`; retención 14 d; recibe los logs JSON del API |
 
 **Red:** una sola red bridge, `gs08-net` (`name: gs08-net`, driver `bridge`). Los contenedores se resuelven
-por **nombre de servicio** (`api`, `api-b`, `db`), que es lo que usa el upstream de nginx.
-**Volúmenes con nombre:** `pgdata` (datos), `prometheus_data` (15 d), `grafana_data` (paneles y usuarios).
+por **nombre de servicio** (`api`, `api-b`, `db`, `mongo`, `redis`), que es lo que usa el upstream de nginx.
+**Volúmenes con nombre:** `pgdata`, `mongodata`, `redisdata` (datos), `prometheus_data` (15 d), `grafana_data`
+(paneles y usuarios), `lokidata` (logs).
 **Logs acotados:** driver `json-file` con `max-size: 10m` y `max-file: 3` en todos los servicios.
 
 ### 4.2 Variables de entorno
@@ -256,6 +285,10 @@ Plantilla: `.env.example` (compose funciona **sin** `.env`, usando esos valores 
 | `SECRET_KEY` | `cambiar-esta-clave-en-produccion` | firma del token |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `60` | vigencia de la sesión |
 | `VITE_API_BASE_URL` | `/api/v1` | base de la API embebida en el bundle (mismo origen: nginx proxea) |
+| `MONGO_URL` / `MONGO_BD` | `mongodb://mongo:27017` / `gs08_bitacora` | segunda base documental (bitácora y boletas archivadas). **Vacío = apagada**: el API responde igual |
+| `REDIS_URL` / `CACHE_TTL_SEGUNDOS` | `redis://redis:6379/0` / `60` | caché distribuida del panel. **Vacío = apagada**, sin caché |
+| `LOKI_URL` / `SERVICIO` | (vacío) / `gs08-api` | si tiene valor, además de la consola los logs JSON se empujan a Loki; `SERVICIO` es la etiqueta con la que se filtran |
+| `MONGO_PORT` / `REDIS_PORT` / `LOKI_PORT` | `27017` / `6379` / `3100` | puertos publicados de los servicios nuevos |
 | `GRAFANA_ADMIN_USER` / `GRAFANA_ADMIN_PASSWORD` | `admin` / `gs08_grafana` | acceso a Grafana |
 | `PROMETHEUS_PORT` / `GRAFANA_PORT` | `9090` / `3000` | observabilidad |
 | `TZ` | `America/Lima` | zona horaria de todos los contenedores |
@@ -393,6 +426,10 @@ Acciones de GitHub usadas (fijadas por versión): `checkout v7.0.1`, `setup-pyth
 ## 7. Kubernetes
 
 ### 7.1 Estado: manifiestos listos, cluster NO desplegado en esta máquina
+
+> **Nota (13/10/2026):** los manifiestos de `k8s/` describen el stack **anterior** a D-28: no incluyen MongoDB,
+> Redis ni Loki. El despliegue que se usa hoy es el compose (local y Coolify, que ya los trae). Añadirlos al
+> cluster es trabajo pendiente y depende de A-02 (instalación de minikube).
 
 ```
 $ kubectl config current-context

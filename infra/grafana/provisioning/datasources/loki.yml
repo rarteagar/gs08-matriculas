@@ -1,0 +1,24 @@
+# ============================================================
+# GS08 · Matrículas y Notas | Grafana -> Loki
+# Los logs estructurados del API (JSON) llegan a Loki y se consultan desde Grafana,
+# que ya está provisionado: aquí solo se declara la fuente de datos, no hay que
+# configurar nada a mano en la interfaz.
+# ============================================================
+apiVersion: 1
+
+datasources:
+  - name: Loki
+    uid: loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    isDefault: false
+    editable: false
+    jsonData:
+      maxLines: 1000
+      timeout: 60
+      derivedFields:
+        - name: pedido_id
+          matcherRegex: '"pedido_id":"(\w+)"'
+          url: '${__value.raw}'
+          datasourceUid: loki

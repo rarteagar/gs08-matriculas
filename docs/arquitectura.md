@@ -10,7 +10,7 @@ y cada uno dice de dónde. Los datos técnicos que lo respaldan están en `docs/
 
 **Aviso de estado, para leer los diagramas:** lo que **existe y corre** hoy es la infraestructura (compose,
 PostgreSQL con el esquema del legacy, nginx balanceando 2 instancias, Prometheus/Grafana) y el **API real**
-(28 endpoints publicados, probado contra una base limpia: 22 de los 39 criterios con corrida verde). **El SPA
+(19 rutas / 34 operaciones publicadas, probado contra una base limpia: 22 de los 39 criterios con corrida verde). **El SPA
 es T2.4** y el compose todavía sirve el **stub de humo** en `:8080` (retirarlo es T2.6), así que los diagramas
 de componentes y de flujo describen la arquitectura ya construida *alrededor* de ese código: el balanceo, el
 failover y la observabilidad son reales; el SPA del diagrama §1 es el que falta.
@@ -23,15 +23,17 @@ failover y la observabilidad son reales; el SPA del diagrama §1 es el que falta
 4. [Despliegue en Kubernetes](#4-despliegue-en-kubernetes)
 5. [Observabilidad](#5-observabilidad)
 6. [Decisiones de arquitectura que explican estos diagramas](#6-decisiones-de-arquitectura-que-explican-estos-diagramas)
+7. [Capa documental, caché, GraphQL y logging centralizado (rúbrica)](#7-capa-documental-caché-graphql-y-logging-centralizado-rúbrica)
 
 ---
 
 ## 1. Vista de componentes (Docker Compose)
 
-**Fuente:** `docker-compose.yml` (servicios `db`, `api`, `api-b`, `web`, perfil `obs` con `prometheus` y
-`grafana`), `frontend/nginx/default.conf.template`, `backend/Dockerfile`, `frontend/Dockerfile`.
-**Evidencia de que levanta:** `docker compose --profile obs ps` → 6 contenedores healthy
-(`docs/devops/evidencia-sprint0.md` §2).
+**Fuente:** `docker-compose.yml` (servicios `db`, `mongo`, `redis`, `api`, `api-b`, `web`, perfil `obs` con
+`prometheus`, `grafana` y `loki`), `frontend/nginx/default.conf.template`, `backend/Dockerfile`,
+`frontend/Dockerfile`.
+**Evidencia de que levanta:** `docker compose --profile obs ps` → 9 contenedores healthy
+(`docs/devops/evidencia-sprint0.md` §2; los tres servicios nuevos, verificado el 13/10/2026).
 
 ```mermaid
 flowchart TB
@@ -42,33 +44,45 @@ flowchart TB
             API1["gs08-api · FastAPI (Python 3.12)<br/>usuario app uid 10001, :8000"]
             API2["gs08-api-b · misma imagen<br/>segunda instancia, sin puerto al host"]
             DB[("gs08-db · postgres:16.15-alpine3.24<br/>base gs08_matriculas<br/>volumen pgdata")]
+            MONGO[("gs08-mongo · mongo:8.0<br/>base gs08_bitacora (bitácora<br/>y boletas) · volumen mongodata")]
+            REDIS[("gs08-redis · redis:8-alpine<br/>caché del panel · volumen redisdata")]
             PROM["gs08-prometheus · v3.13.3<br/>perfil obs, :9090"]
-            GRAF["gs08-grafana · 12.4.11<br/>perfil obs, :3000"]
+            GRAF["gs08-grafana · 12.4.11<br/>perfil obs, :3000<br/>datasources Prometheus + Loki"]
+            LOKI["gs08-loki · 3.5.2<br/>perfil obs, :3100<br/>volumen lokidata"]
         end
     end
 
     NAV["Navegador / @qa<br/>http://localhost:8080"]
-    QA2["Pruebas directas al API<br/>http://localhost:8000 + /docs"]
+    QA2["Pruebas directas al API<br/>http://localhost:8000 + /docs + /graphql"]
 
     NAV -->|"GET / (SPA)"| WEB
     NAV -->|"GET /api/v1/... (proxy)"| WEB
-    QA2 -->|"health, metrics, Swagger"| API1
+    QA2 -->|"health, metrics, Swagger, GraphiQL"| API1
     WEB -->|"upstream gs08_api (round-robin<br/>max_fails=3 fail_timeout=10s)"| API1
     WEB -->|"misma zona de balanceo"| API2
     API1 -->|"SQLAlchemy + psycopg 3"| DB
     API2 -->|"SQLAlchemy + psycopg 3"| DB
+    API1 -->|"pymongo: bitácora + boleta emitida"| MONGO
+    API2 -->|"pymongo (misma base documental)"| MONGO
+    API1 -->|"redis: caché del panel (TTL 60 s)"| REDIS
+    API2 -->|"redis: la misma caché"| REDIS
+    API1 -->|"logs JSON (push HTTP)"| LOKI
+    API2 -->|"logs JSON (push HTTP)"| LOKI
     PROM -->|"scrape /metrics cada 15 s"| API1
     PROM -->|"scrape /metrics cada 15 s"| API2
     GRAF -->|"datasource Prometheus (provisionado)"| PROM
+    GRAF -->|"datasource Loki (provisionado)"| LOKI
 
     subgraph VOL["volúmenes con nombre"]
         V1["pgdata"]
         V2["prometheus_data · retención 15 d"]
         V3["grafana_data"]
+        V4["mongodata · redisdata · lokidata"]
     end
     DB -.-> V1
     PROM -.-> V2
     GRAF -.-> V3
+    MONGO -.-> V4
 
     subgraph INIT["db/init/*.sql (solo al crear el volumen)"]
         I1["01-schema.sql · 02-view.sql · 03-seed.sql"]
@@ -76,7 +90,8 @@ flowchart TB
     I1 -.->|"docker-entrypoint-initdb.d"| DB
 ```
 
-**Puertos publicados al host:** `8080` (web), `8000` (api), `5432` (db), `9090` (prometheus), `3000` (grafana).
+**Puertos publicados al host:** `8080` (web), `8000` (api), `5432` (db), `27017` (mongo), `6379` (redis),
+`9090` (prometheus), `3000` (grafana), `3100` (loki).
 **`api-b` no publica puerto a propósito:** solo lo alcanza nginx por la red interna.
 **Un contenedor por servicio, imágenes alpine y usuario no root:** el porqué está en
 `docs/seguridad-etica-sostenibilidad.md` §3.
@@ -390,6 +405,65 @@ Citadas **tal cual** de `docs/decisiones.md` (no se reescriben, D-20):
 | **D-08** | Sin auditoría (`creado_por`, triggers) en la v1 | §3 (relación punteada `usuarios` ↔ `matriculas`) |
 
 ---
+
+---
+
+## 7. Capa documental, caché, GraphQL y logging centralizado (rúbrica)
+
+**Fuente:** `backend/app/mongo.py`, `backend/app/cache.py`, `backend/app/graphql.py`,
+`backend/app/observabilidad.py`, `backend/app/boleta.py`, `backend/app/routers/auditoria.py`,
+`infra/loki/loki-config.yml`, `infra/grafana/provisioning/datasources/loki.yml`. Decisión: **D-28**.
+
+La consigna del trabajo colaborativo pide «bases de datos híbridas (PostgreSQL + MongoDB)», «APIs REST y
+GraphQL», «OAuth2, JWT y roles RBAC» y «caching distribuido (Redis) y logging centralizado». Se resolvió
+**añadiendo capas al API** en vez de reescribirlo: el SPA, el balanceo de nginx y el despliegue no se mueven.
+
+```mermaid
+flowchart LR
+    H["Navegador (SPA React)"]
+    Q["GraphiQL / cliente GraphQL"]
+    subgraph API["gs08-api y gs08-api-b (sin cambios de despliegue)"]
+        MW["Middleware: X-Request-ID,<br/>log JSON, bitácora e invalidación"]
+        REST["Routers REST /api/v1"]
+        GQL["Strawberry /graphql"]
+        BOL["app/boleta.py: una sola fórmula"]
+    end
+    PG[("PostgreSQL 16<br/>datos relacionales")]
+    MG[("MongoDB 8<br/>bitacora · boletas_snapshot")]
+    RD[("Redis 8<br/>gs08:panel (TTL 60 s)")]
+    LK[("Loki 3.5")]
+    GF["Grafana (Explore)"]
+    H -->|"REST con JWT"| MW
+    Q -->|"POST /graphql con JWT"| MW
+    MW --> REST
+    MW --> GQL
+    REST --> BOL
+    GQL --> BOL
+    REST --> PG
+    GQL --> PG
+    MW -->|"cada escritura"| MG
+    REST -->|"boleta emitida"| MG
+    MW -->|"invalida tras escribir"| RD
+    REST -->|"lee y escribe la caché"| RD
+    MW -->|"log JSON"| LK
+    LK --> GF
+```
+
+**Reglas que hacen que esto no sea decorativo:**
+
+1. **Una sola fórmula de boleta** (`app/boleta.py`): REST y GraphQL calculan igual, así que no pueden dar números
+   distintos entre sí. Mismo criterio que D-14 con el esquema.
+2. **La bitácora la escribe el middleware**, no cada endpoint: ninguna operación futura queda sin auditar por
+   olvido, y las credenciales se enmascaran (`***`) antes de llegar a Mongo.
+3. **Degradación limpia:** sin `MONGO_URL` o `REDIS_URL` el API responde igual (sin bitácora / sin caché). Es lo
+   que permite que el CI —que solo levanta PostgreSQL— siga corriendo las 103 pruebas.
+4. **La caché se invalida sola** en cada escritura correcta: no queda un panel viejo después de matricular.
+5. **Logs centralizados sin Promtail:** el API empuja el JSON a Loki por su API HTTP, así funciona igual en
+   Windows (Docker Desktop) y en el VPS, sin montar el socket de Docker.
+
+**Medido el 13/10/2026** (stack local, `docs/decisiones.md` D-28): **103 pruebas y 89 % de cobertura**; caché del
+panel **54,2 ms → 13,5 ms (4,0x)** con 20 000 estudiantes y 20 000 matrículas; bitácora con las escrituras reales
+del recorrido y **sin la contraseña**; Loki con la serie `{servicio="gs08-api"}`.
 
 **Archivos de los que sale este documento:** `docker-compose.yml`, `frontend/nginx/default.conf.template`,
 `frontend/Dockerfile`, `backend/Dockerfile`, `db/init/*.sql`, `k8s/*.yaml`, `infra/prometheus/prometheus.yml`,

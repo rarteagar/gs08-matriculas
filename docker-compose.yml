@@ -1,10 +1,12 @@
 # ============================================================
 # GS08 - Matriculas y Notas | stack local completo
-#   docker compose up -d                      -> db + api (x2) + web  (la aplicacion)
-#   docker compose --profile obs up -d        -> + prometheus + grafana
+#   docker compose up -d                      -> db + mongo + redis + api (x2) + web
+#   docker compose --profile obs up -d        -> + prometheus + grafana + loki
 #   docker compose ps ; docker compose logs -f api
 # Puertos por defecto (se cambian en .env):
-#   web 8080 | api 8000 | db 5432 | prometheus 9090 | grafana 3000
+#   web 8080 | api 8000 | db 5432 | mongo 27017 | redis 6379 | prometheus 9090 | grafana 3000 | loki 3100
+#   Logging centralizado: LOKI_URL=http://loki:3100 docker compose --profile obs up -d
+#     (sin esa variable los logs siguen saliendo en JSON por consola, como siempre)
 # ============================================================
 name: gs08-matriculas
 
@@ -27,8 +29,20 @@ x-api-common: &api-common
     DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-gs08}:${POSTGRES_PASSWORD:-gs08_dev_pwd}@db:5432/${POSTGRES_DB:-gs08_matriculas}
     SECRET_KEY: ${SECRET_KEY:-cambiar-esta-clave-en-produccion}
     ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+    # Segunda base documental (bitácora + boletas archivadas) y caché distribuida del panel.
+    MONGO_URL: ${MONGO_URL:-mongodb://mongo:27017}
+    MONGO_BD: ${MONGO_BD:-gs08_bitacora}
+    REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+    CACHE_TTL_SEGUNDOS: ${CACHE_TTL_SEGUNDOS:-60}
+    # Logging centralizado: exportar LOKI_URL=http://loki:3100 junto con --profile obs.
+    LOKI_URL: ${LOKI_URL:-}
+    SERVICIO: ${SERVICIO:-gs08-api}
   depends_on:
     db:
+      condition: service_healthy
+    mongo:
+      condition: service_healthy
+    redis:
       condition: service_healthy
   logging: *default-logging
 
@@ -57,6 +71,47 @@ services:
       timeout: 5s
       retries: 10
       start_period: 20s
+    networks: [gs08]
+    logging: *default-logging
+
+  # ---------------- Segunda base: bitácora documental (rúbrica: BD híbrida) ----------------
+  mongo:
+    image: mongo:8.0
+    container_name: gs08-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: ${MONGO_BD:-gs08_bitacora}
+      TZ: ${TZ:-America/Lima}
+    ports:
+      - "${MONGO_PORT:-27017}:27017"
+    volumes:
+      - mongodata:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval \"db.adminCommand('ping').ok\" | grep 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    networks: [gs08]
+    logging: *default-logging
+
+  # ---------------- Caché distribuida del panel (rúbrica: caching distribuido) ----------------
+  redis:
+    image: redis:8-alpine
+    container_name: gs08-redis
+    restart: unless-stopped
+    # allkeys-lru: si se llena, Redis descarta lo menos usado en vez de rechazar escrituras.
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
     networks: [gs08]
     logging: *default-logging
 
@@ -139,10 +194,28 @@ services:
     networks: [gs08]
     logging: *default-logging
 
+  # ---------------- Logging centralizado (rúbrica): logs JSON del API -> Loki -> Grafana ----------------
+  loki:
+    image: grafana/loki:3.5.2
+    container_name: gs08-loki
+    profiles: [obs]
+    restart: unless-stopped
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+      - "${LOKI_PORT:-3100}:3100"
+    volumes:
+      - ./infra/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - lokidata:/loki
+    networks: [gs08]
+    logging: *default-logging
+
 volumes:
   pgdata:
+  mongodata:
+  redisdata:
   prometheus_data:
   grafana_data:
+  lokidata:
 
 networks:
   gs08:

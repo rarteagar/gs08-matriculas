@@ -16,3 +16,12 @@ pydantic-settings==2.15.0
 prometheus-fastapi-instrumentator==8.1.0
 bcrypt==4.2.1
 PyJWT==2.10.1
+# --- Rubrica del curso: API GraphQL, bitacora documental, cache y logs ---
+#   strawberry-graphql -> capa GraphQL sobre las mismas entidades
+#   pymongo            -> segunda base (bitacora de auditoria y boletas)
+#   redis              -> cache distribuida del panel
+#   python-json-logger -> logs estructurados en JSON
+strawberry-graphql[fastapi]==0.334.4
+pymongo==4.18.3
+redis==8.1.0
+python-json-logger==4.2.0

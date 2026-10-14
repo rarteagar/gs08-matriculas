@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app import cache
 from app.db import get_db
 from app.deps import usuario_actual
 from app.schemas import Panel
@@ -23,6 +24,12 @@ CAMPOS_ESTUDIANTE = (
 
 @router.get("", response_model=Panel)
 def panel(db: Session = Depends(get_db), _: object = Depends(usuario_actual)) -> dict:
+    # Caché distribuida (Redis): el panel son 3 consultas agregadas y se pide al entrar.
+    # Se guarda con TTL y el middleware la invalida en cuanto hay un alta/edición/baja.
+    guardado = cache.obtener(cache.CLAVE_PANEL)
+    if guardado is not None:
+        return guardado
+
     conteos = (
         db.execute(
             text(
@@ -55,7 +62,7 @@ def panel(db: Session = Depends(get_db), _: object = Depends(usuario_actual)) ->
         .all()
     )
 
-    return {
+    respuesta = {
         "estudiantes_activos": conteos["estudiantes_activos"],
         "cursos_activos": conteos["cursos_activos"],
         "matriculas_activas": conteos["matriculas_activas"],
@@ -63,3 +70,5 @@ def panel(db: Session = Depends(get_db), _: object = Depends(usuario_actual)) ->
         "top_cursos": [dict(f) for f in top],
         "ultimos_estudiantes": [{**dict(f), "nombre_completo": f"{f['apellidos']}, {f['nombres']}"} for f in ultimos],
     }
+    cache.guardar(cache.CLAVE_PANEL, respuesta)
+    return respuesta

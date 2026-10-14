@@ -136,3 +136,37 @@ que CI pase en `main`; el despliegue a k8s solo se activa con la variable `DEPLO
 | Cambio el DDL en `db/init/` y no pasa nada | Los scripts de `docker-entrypoint-initdb.d` corren una sola vez: `docker compose down -v` (borra datos locales). |
 | `docker compose config` avisa de variable no definida | Crear `.env` desde `.env.example`. |
 | El pull de imagenes llena el disco C: | Docker Desktop guarda las imagenes en el disco del sistema. Mover el disco de datos a `D:` desde Settings > Resources (la unidad C: esta al 94%). |
+
+## 8. Segunda base (MongoDB), cache (Redis), GraphQL y logs (Loki)
+
+```bash
+# --- Segunda base documental: bitacora de escrituras y boletas archivadas ---
+docker exec gs08-mongo mongosh --quiet gs08_bitacora --eval "db.getCollectionNames()"
+docker exec gs08-mongo mongosh --quiet gs08_bitacora --eval "db.bitacora.find().sort({fecha:-1}).limit(3).toArray()"
+docker exec gs08-mongo mongosh --quiet gs08_bitacora --eval "db.bitacora.countDocuments()"
+
+# la bitacora por HTTP (solo rol admin; si MONGO_URL esta vacio responde activa=false)
+curl -s "localhost:8000/api/v1/auditoria?entidad=estudiante&limite=5" -H "Authorization: Bearer $TOKEN"
+
+# --- Cache distribuida del panel ---
+docker exec gs08-redis redis-cli keys 'gs08:*'
+docker exec gs08-redis redis-cli ttl gs08:panel          # segundos que le quedan
+docker exec gs08-redis redis-cli del gs08:panel          # fuerza el recalculo
+# cualquier alta/edicion/baja de /api/v1 la invalida sola (lo hace el middleware)
+
+# --- GraphQL (GraphiQL en el navegador; mismo token que el REST) ---
+# http://localhost:8000/graphql
+curl -s localhost:8000/graphql -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"   -d '{"query":"{ panel { estudiantesActivos matriculasActivas topCursos { codigo matriculas } } }"}'
+curl -s localhost:8000/graphql -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"   -d '{"query":"{ estudiantes(q: "huaman") { codigo nombreCompleto } }"}'
+# sin cabecera Authorization -> 401 (igual que el REST)
+
+# --- Logging centralizado ---
+LOKI_URL=http://loki:3100 docker compose --profile obs up -d     # levanta loki con grafana y prometheus
+docker logs --tail 5 gs08-api                                    # cada linea es un JSON con pedido_id y usuario
+# Grafana -> Explore -> datasource Loki -> {servicio="gs08-api"}  (http://localhost:3000)
+curl -sG localhost:3100/loki/api/v1/query_range --data-urlencode 'query={servicio="gs08-api"}' --data limit=5
+```
+
+**Si algo de esto no responde:** `docker compose ps` (los tres servicios deben estar `healthy`), y revisar que
+`MONGO_URL` / `REDIS_URL` estén definidas en el entorno del API (`docker compose exec api env | grep -E 'MONGO|REDIS|LOKI'`).
+Sin ellas el API funciona igual, pero sin bitácora, sin caché y sin logs en Loki: eso es lo esperado, no un error.

@@ -16,22 +16,21 @@ from fastapi.responses import JSONResponse
 from prometheus_fastapi_instrumentator import Instrumentator
 from sqlalchemy.exc import IntegrityError
 
+from app import graphql, observabilidad
 from app.config import config
 from app.errores import manejador_integridad, manejador_validacion
-from app.routers import auth, cursos, dashboard, estudiantes, matriculas, salud, usuarios
+from app.routers import auditoria, auth, cursos, dashboard, estudiantes, matriculas, salud, usuarios
 
-logging.basicConfig(
-    level=getattr(logging, config.log_level.upper(), logging.INFO),
-    format="%(asctime)s %(levelname)-7s %(name)s | %(message)s",
-)
+observabilidad.configurar_logs()
 log = logging.getLogger("gs08")
 
 app = FastAPI(
     title="GS08 · Matrículas y Notas",
-    version="0.1.0",
+    version="0.2.0",
     description=(
         "API del MVP: autenticación, panel, estudiantes, cursos, matrículas, usuarios, "
-        "notas y boleta. Esquema de datos: db/init/*.sql y la revisión 0001 de Alembic."
+        "notas, boleta y bitácora. Esquema de datos: db/init/*.sql y la revisión 0001 de Alembic. "
+        "La misma información se puede consultar por REST (/api/v1) o por GraphQL (/graphql)."
     ),
     docs_url="/docs",
     redoc_url=None,
@@ -46,18 +45,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Id de petición + log estructurado + bitácora documental + invalidación de la caché.
+app.add_middleware(observabilidad.ContextoPeticion)
+
 # Un error de integridad nunca sale como 500 (C-11) y una validación sale con el campo
 app.add_exception_handler(IntegrityError, manejador_integridad)
 app.add_exception_handler(RequestValidationError, manejador_validacion)
 
 Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 
-for modulo in (salud, auth, estudiantes, cursos, matriculas, usuarios, dashboard):
+for modulo in (salud, auth, estudiantes, cursos, matriculas, usuarios, dashboard, auditoria):
     app.include_router(modulo.router)
 
 # routers secundarios del módulo de matrículas (notas sueltas y boleta)
 app.include_router(matriculas.router_notas)
 app.include_router(matriculas.router_boleta)
+
+# Segunda puerta de entrada al mismo modelo, para el ítem "REST y GraphQL" de la rúbrica.
+app.include_router(graphql.router)
 
 
 @app.get("/", include_in_schema=False)
@@ -66,6 +71,7 @@ def raiz() -> dict:
         "servicio": "GS08 · Matrículas y Notas",
         "entorno": config.environment,
         "api": "/api/v1",
+        "graphql": "/graphql",
         "salud": "/api/v1/health",
         "metricas": "/metrics",
         "documentacion": "/docs",

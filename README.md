@@ -80,6 +80,9 @@ Docker Desktop corre con `29.8.0 | linux | overlayfs | Mem=12 GB` (`docs/devops/
 | nginx (SPA + proxy) | `nginx:1.31.6-alpine` | `frontend/Dockerfile` |
 | Prometheus | `prom/prometheus:v3.13.3` | `docker-compose.yml` |
 | Grafana | `grafana/grafana:12.4.11` | `docker-compose.yml` |
+| MongoDB (segunda base) | `mongo:8.0` | `docker-compose.yml` |
+| Redis (caché) | `redis:8-alpine` | `docker-compose.yml` |
+| Loki (logs) | `grafana/loki:3.5.2` | `docker-compose.yml` (perfil `obs`) |
 
 `python scripts/validar_infra.py` **verifica que ninguna imagen quede en `:latest`** (21 comprobaciones, 0 fallas).
 
@@ -87,7 +90,8 @@ Docker Desktop corre con `29.8.0 | linux | overlayfs | Mem=12 GB` (`docs/devops/
 
 Las dependencias del API están **instaladas y verificadas**: `backend/requirements.txt` existe y el comando
 exacto del CI (`ruff check . && ruff format --check . && pytest -q --cov=app --cov-fail-under=60`) corre
-**57 pruebas con 87,29 % de cobertura, exit 0**. Versiones contratadas (fuente:
+**103 pruebas con 89 % de cobertura, exit 0** (13/10/2026; eran 57 y 87,29 % antes de la capa de rúbrica D-28).
+Versiones contratadas (fuente:
 `docs/devops/plan-contenedores-ci.md` §3, verificadas contra PyPI el 21/09/2026):
 
 | Componente | Versión |
@@ -99,6 +103,10 @@ exacto del CI (`ruff check . && ruff format --check . && pytest -q --cov=app --c
 | Instrumentación Prometheus | `prometheus-fastapi-instrumentator==8.1.0` |
 | Configuración | `pydantic-settings==2.15.0` |
 | Migraciones | `alembic==1.20.0` |
+| GraphQL (D-28) | `strawberry-graphql[fastapi]==0.334.4` |
+| Segunda base documental (D-28) | `pymongo==4.18.3` |
+| Caché distribuida (D-28) | `redis==8.1.0` |
+| Logs JSON (D-28) | `python-json-logger==4.2.0` |
 | Frontend | React 19 + Vite + Tailwind (`frontend/package.json`): **6 vistas** (login, panel, estudiantes, cursos, matrículas, usuarios) y los diálogos de boleta y notas; consumen las **30 operaciones** del contrato (D-27) |
 
 ---

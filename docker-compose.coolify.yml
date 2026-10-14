@@ -37,8 +37,20 @@ x-api-common: &api-common
     DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-gs08}:${POSTGRES_PASSWORD:-gs08_dev_pwd}@gs08-db:5432/${POSTGRES_DB:-gs08_matriculas}
     SECRET_KEY: ${SECRET_KEY:-cambiar-esta-clave-en-produccion}
     ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-120}
+    # Segunda base documental (bitácora + boletas archivadas) y caché distribuida del panel.
+    MONGO_URL: ${MONGO_URL:-mongodb://gs08-mongo:27017}
+    MONGO_BD: ${MONGO_BD:-gs08_bitacora}
+    REDIS_URL: ${REDIS_URL:-redis://gs08-redis:6379/0}
+    CACHE_TTL_SEGUNDOS: ${CACHE_TTL_SEGUNDOS:-60}
+    # Logging centralizado: vacío = los logs JSON salen por consola (docker logs).
+    LOKI_URL: ${LOKI_URL:-}
+    SERVICIO: ${SERVICIO:-gs08-api}
   depends_on:
     db:
+      condition: service_healthy
+    mongo:
+      condition: service_healthy
+    redis:
       condition: service_healthy
   networks: [gs08]
   logging: *default-logging
@@ -70,6 +82,48 @@ services:
     networks:
       gs08:
         aliases: [gs08-db]
+    logging: *default-logging
+
+  # ---------------- Segunda base: bitácora documental (rúbrica: BD híbrida) ----------------
+  # Consumo medido en local: ~70 MB en reposo. El VPS ya hospeda otros stacks,
+  # por eso el límite y el volumen con nombre (los datos sobreviven al redeploy).
+  mongo:
+    image: mongo:8.0
+    restart: unless-stopped
+    mem_limit: 320m
+    environment:
+      MONGO_INITDB_DATABASE: ${MONGO_BD:-gs08_bitacora}
+      TZ: America/Lima
+    volumes:
+      - mongodata:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval \"db.adminCommand('ping').ok\" | grep 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      gs08:
+        aliases: [gs08-mongo]
+    logging: *default-logging
+
+  # ---------------- Caché distribuida del panel (rúbrica: caching distribuido) ----------------
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    mem_limit: 96m
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      gs08:
+        aliases: [gs08-redis]
     logging: *default-logging
 
   # ---------------- API FastAPI (2 instancias -> nginx balancea) ----------------
@@ -129,6 +183,8 @@ services:
 
 volumes:
   pgdata:
+  mongodata:
+  redisdata:
 
 networks:
   # Red del proxy Traefik de Coolify: sin esto, Traefik no ve el contenedor
