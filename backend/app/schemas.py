@@ -79,6 +79,15 @@ class LoginSalida(BaseModel):
     usuario: UsuarioSalida
 
 
+class TokenSalida(BaseModel):
+    """Respuesta del endpoint OAuth2 (RFC 6749 §5.1): el `scope` es la lista con espacios."""
+
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int
+    scope: str
+
+
 # ------------------------------------------------------------
 # Estudiantes (CU-03..CU-06 / C-08..C-12)
 # ------------------------------------------------------------

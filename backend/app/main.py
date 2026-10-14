@@ -19,6 +19,7 @@ from sqlalchemy.exc import IntegrityError
 from app import graphql, observabilidad
 from app.config import config
 from app.errores import manejador_integridad, manejador_validacion
+from app.errores_oauth import ErrorOAuth, manejador_oauth
 from app.routers import auditoria, auth, cursos, dashboard, estudiantes, matriculas, salud, usuarios
 
 observabilidad.configurar_logs()
@@ -26,11 +27,13 @@ log = logging.getLogger("gs08")
 
 app = FastAPI(
     title="GS08 · Matrículas y Notas",
-    version="0.2.0",
+    version="0.3.0",
     description=(
         "API del MVP: autenticación, panel, estudiantes, cursos, matrículas, usuarios, "
         "notas, boleta y bitácora. Esquema de datos: db/init/*.sql y la revisión 0001 de Alembic. "
-        "La misma información se puede consultar por REST (/api/v1) o por GraphQL (/graphql)."
+        "La misma información se puede consultar por REST (/api/v1) o por GraphQL (/graphql). "
+        "Autenticación: OAuth2 password grant (/api/v1/auth/token) con scopes por rol; los errores "
+        "del endpoint de token siguen el formato del RFC 6749."
     ),
     docs_url="/docs",
     redoc_url=None,
@@ -51,6 +54,8 @@ app.add_middleware(observabilidad.ContextoPeticion)
 # Un error de integridad nunca sale como 500 (C-11) y una validación sale con el campo
 app.add_exception_handler(IntegrityError, manejador_integridad)
 app.add_exception_handler(RequestValidationError, manejador_validacion)
+# Los errores de OAuth2 salen con la forma del estándar (RFC 6749 §5.2)
+app.add_exception_handler(ErrorOAuth, manejador_oauth)
 
 Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 
@@ -72,6 +77,7 @@ def raiz() -> dict:
         "entorno": config.environment,
         "api": "/api/v1",
         "graphql": "/graphql",
+        "oauth2_token": "/api/v1/auth/token",
         "salud": "/api/v1/health",
         "metricas": "/metrics",
         "documentacion": "/docs",

@@ -10,6 +10,7 @@ import json
 import logging
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
 from contextvars import ContextVar
@@ -159,6 +160,27 @@ def _sin_credenciales(datos):
     return datos
 
 
+async def _cuerpo_para_la_bitacora(request) -> dict | None:
+    """Cuerpo de la petición para la bitácora, ya sin credenciales.
+
+    Entiende JSON y `application/x-www-form-urlencoded`: el endpoint de token de OAuth2
+    manda formulario, y sin esto la bitácora guardaría un documento sin datos.
+    """
+    try:
+        crudo = await request.body()
+    except Exception:
+        return None
+    if not crudo:
+        return None
+    tipo = request.headers.get("content-type", "")
+    try:
+        if "application/x-www-form-urlencoded" in tipo:
+            return _sin_credenciales(dict(urllib.parse.parse_qsl(crudo.decode("utf-8", "replace"))))
+        return _sin_credenciales(json.loads(crudo))
+    except Exception:
+        return None
+
+
 def _quien_firma(authorization: str | None) -> tuple[str, str]:
     """Usuario y rol del token, para la bitácora. Sin token válido: guiones."""
     if not authorization or not authorization.lower().startswith("bearer "):
@@ -178,12 +200,7 @@ class ContextoPeticion(BaseHTTPMiddleware):
         identificador = request.headers.get("X-Request-ID") or uuid.uuid4().hex[:12]
         pedido_id.set(identificador)
         inventario = request.method in METODOS_ESCRITURA and request.url.path.startswith("/api/v1")
-        if inventario:
-            try:
-                crudo = await request.body()
-                cuerpo = _sin_credenciales(json.loads(crudo)) if crudo else None
-            except Exception:
-                cuerpo = None
+        cuerpo = await _cuerpo_para_la_bitacora(request) if inventario else None
         usuario, rol = _quien_firma(request.headers.get("Authorization"))
         usuario_log.set(usuario)
         arranque = time.perf_counter()

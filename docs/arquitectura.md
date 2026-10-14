@@ -461,9 +461,39 @@ flowchart LR
 5. **Logs centralizados sin Promtail:** el API empuja el JSON a Loki por su API HTTP, así funciona igual en
    Windows (Docker Desktop) y en el VPS, sin montar el socket de Docker.
 
-**Medido el 13/10/2026** (stack local, `docs/decisiones.md` D-28): **103 pruebas y 89 % de cobertura**; caché del
-panel **54,2 ms → 13,5 ms (4,0x)** con 20 000 estudiantes y 20 000 matrículas; bitácora con las escrituras reales
-del recorrido y **sin la contraseña**; Loki con la serie `{servicio="gs08-api"}`.
+**Medido el 13/10/2026** (stack local, `docs/decisiones.md` D-28 y D-29): **119 pruebas y 90 % de cobertura**; caché
+del panel **54,2 ms → 13,5 ms (4,0x)** con 20 000 estudiantes y 20 000 matrículas; bitácora con las escrituras
+reales del recorrido y **sin la contraseña**; Loki con la serie `{servicio="gs08-api"}`; y la autenticación OAuth2
+con **16 scopes** (token restringido → 403 en lo que no le toca).
+
+### 7.1 Flujo de autenticación: OAuth2 password grant con scopes (D-29)
+
+```mermaid
+sequenceDiagram
+    participant S as SPA / cliente
+    participant A as API (gs08-api)
+    participant P as PostgreSQL
+    S->>A: POST /api/v1/auth/token (grant_type=password, username, password, scope?)
+    A->>P: busca el usuario y verifica el hash bcrypt
+    alt credenciales malas o cuenta desactivada
+        A-->>S: 400 {"error":"invalid_grant"}
+    else correctas
+        A->>A: rol -> scopes (app/scopes.py)
+        A-->>S: 200 {access_token, token_type, expires_in, scope}
+    end
+    S->>A: GET /api/v1/matriculas (Authorization: Bearer …)
+    A->>A: requiere_scope("matriculas:leer") revisa el `scp` del token
+    alt al token le falta el scope
+        A-->>S: 403 {"error":"insufficient_scope"} + WWW-Authenticate
+    else lo tiene
+        A->>P: consulta
+        A-->>S: 200 […]
+    end
+```
+
+El servidor de autorización es el propio API: **no hay contenedor, RAM ni dominio extra** (el SPA es cliente
+propio). El token lleva los scopes en `scp` y cada endpoint pide el suyo; el reparto por rol está en
+`docs/manual-tecnico.md` §2.6.
 
 **Archivos de los que sale este documento:** `docker-compose.yml`, `frontend/nginx/default.conf.template`,
 `frontend/Dockerfile`, `backend/Dockerfile`, `db/init/*.sql`, `k8s/*.yaml`, `infra/prometheus/prometheus.yml`,

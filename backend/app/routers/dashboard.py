@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app import cache
 from app.db import get_db
-from app.deps import usuario_actual
+from app.deps import requiere_scope
 from app.schemas import Panel
 
 router = APIRouter(prefix="/api/v1/dashboard", tags=["panel"])
@@ -23,7 +23,7 @@ CAMPOS_ESTUDIANTE = (
 
 
 @router.get("", response_model=Panel)
-def panel(db: Session = Depends(get_db), _: object = Depends(usuario_actual)) -> dict:
+def panel(db: Session = Depends(get_db), _: object = Depends(requiere_scope("panel:leer"))) -> dict:
     # Caché distribuida (Redis): el panel son 3 consultas agregadas y se pide al entrar.
     # Se guarda con TTL y el middleware la invalida en cuanto hay un alta/edición/baja.
     guardado = cache.obtener(cache.CLAVE_PANEL)

@@ -6,7 +6,8 @@
 Reimplementación del sistema administrativo **PHP + MySQL** del curso Web III (`legacy/`) sobre un stack
 moderno: **API FastAPI + PostgreSQL 16 + SPA React 19**, en contenedores, con CI/CD, Kubernetes local y
 observabilidad. El legacy **no se migra**: se traduce su modelo de datos y su UX, y se le agregan las
-**notas**, que el sistema original no tenía.
+**notas**, que el sistema original no tenía. La autenticación es **OAuth2 (password grant) con scopes por rol**
+sobre JWT (D-29), y el API tiene **segunda base documental en MongoDB, caché Redis, GraphQL y logs a Loki** (D-28).
 
 > **Alcance cerrado:** **39** criterios de aceptación con ID único `C-01`…`C-39` en `docs/alcance-mvp.md`
 > §4 (decisión D-18). Ese es el único denominador de «100 % de cobertura». Lo que **no** entra a la v1 está
@@ -90,7 +91,9 @@ Docker Desktop corre con `29.8.0 | linux | overlayfs | Mem=12 GB` (`docs/devops/
 
 Las dependencias del API están **instaladas y verificadas**: `backend/requirements.txt` existe y el comando
 exacto del CI (`ruff check . && ruff format --check . && pytest -q --cov=app --cov-fail-under=60`) corre
-**103 pruebas con 89 % de cobertura, exit 0** (13/10/2026; eran 57 y 87,29 % antes de la capa de rúbrica D-28).
+**119 pruebas con 90 % de cobertura, exit 0** (13/10/2026; eran 57 y 87,29 % antes de la capa de rúbrica D-28/D-29).
+La autenticación OAuth2 con scopes (D-29) **no sumó dependencias**: usa el `Form` y el `OAuth2PasswordBearer`
+de FastAPI.
 Versiones contratadas (fuente:
 `docs/devops/plan-contenedores-ci.md` §3, verificadas contra PyPI el 21/09/2026):
 

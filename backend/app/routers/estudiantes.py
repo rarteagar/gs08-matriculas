@@ -17,7 +17,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.deps import solo_admin, usuario_actual
+from app.deps import requiere_scope
 from app.models import Estudiante
 from app.schemas import EstudianteEntrada, EstudianteSalida, PaginaEstudiantes, paginas
 
@@ -49,7 +49,7 @@ def listar(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=25, ge=1, le=100),
     db: Session = Depends(get_db),
-    _: object = Depends(usuario_actual),
+    _: object = Depends(requiere_scope("estudiantes:leer")),
 ) -> dict:
     condiciones: list[str] = []
     parametros: dict = {"limite": page_size, "salto": (page - 1) * page_size}
@@ -81,7 +81,7 @@ def listar(
 
 
 @router.get("/{estudiante_id}", response_model=EstudianteSalida)
-def obtener(estudiante_id: int, db: Session = Depends(get_db), _: object = Depends(usuario_actual)) -> dict:
+def obtener(estudiante_id: int, db: Session = Depends(get_db), _: object = Depends(requiere_scope("estudiantes:leer"))) -> dict:
     fila = db.execute(text(f"SELECT {CAMPOS} FROM estudiantes e WHERE e.id = :id"), {"id": estudiante_id}).mappings().first()
     if fila is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No existe el estudiante {estudiante_id}.")
@@ -111,7 +111,9 @@ def _verificar_duplicados(db: Session, datos: EstudianteEntrada, propio_id: int 
 
 
 @router.post("", response_model=EstudianteSalida, status_code=status.HTTP_201_CREATED)
-def crear(datos: EstudianteEntrada, db: Session = Depends(get_db), _: object = Depends(usuario_actual)) -> dict:
+def crear(
+    datos: EstudianteEntrada, db: Session = Depends(get_db), _: object = Depends(requiere_scope("estudiantes:escribir"))
+) -> dict:
     _verificar_duplicados(db, datos)
     estudiante = Estudiante(**datos.model_dump())
     db.add(estudiante)
@@ -126,7 +128,7 @@ def actualizar(
     estudiante_id: int,
     datos: EstudianteEntrada,
     db: Session = Depends(get_db),
-    _: object = Depends(usuario_actual),
+    _: object = Depends(requiere_scope("estudiantes:escribir")),
 ) -> dict:
     estudiante = db.get(Estudiante, estudiante_id)
     if estudiante is None:
@@ -144,7 +146,7 @@ def eliminar(
     estudiante_id: int,
     confirmar: bool = Query(default=False, description="segunda llamada explícita: borra el estudiante y sus matrículas"),
     db: Session = Depends(get_db),
-    _: object = Depends(solo_admin),
+    _: object = Depends(requiere_scope("estudiantes:eliminar")),
 ) -> Response:
     """C-30/C-31/C-32: primero 409 con el conteo, y solo con ?confirmar=true borra en cascada."""
     estudiante = db.get(Estudiante, estudiante_id)

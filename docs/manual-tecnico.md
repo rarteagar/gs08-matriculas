@@ -5,7 +5,7 @@
 
 **Regla de este manual:** cada afirmación cita el archivo o el comando del que sale, y **nada que no exista
 se documenta como existente**. Lo que todavía no está implementado va marcado como *«pendiente T\<xx\>»*.
-**Actualizado el 13/10/2026**: el frontend se migró de Vue 3 a **React 19 + Vite + Tailwind** y ahora consume las **30 operaciones** del contrato (D-27); y al API se le añadieron **MongoDB, Redis, GraphQL y logging centralizado** (D-28), con lo que el contrato pasa a **19 rutas / 34 operaciones** (v0.2.0). El API real, el SPA y el cluster ya estaban entregados el 22/09/2026.
+**Actualizado el 13/10/2026**: el frontend se migró de Vue 3 a **React 19 + Vite + Tailwind** y ahora consume las **30 operaciones** del contrato (D-27); al API se le añadieron **MongoDB, Redis, GraphQL y logging centralizado** (D-28) y la autenticación pasó a **OAuth2 con scopes por rol** (D-29), con lo que el contrato queda en **20 rutas / 35 operaciones** (v0.3.0). El API real, el SPA y el cluster ya estaban entregados el 22/09/2026.
 
 ## Índice
 
@@ -30,7 +30,7 @@ entregados, y el recorrido de extremo a extremo sale verde por el proxy (**39 OK
 
 | Capa | Estado | Evidencia |
 |---|---|---|
-| **API FastAPI real** | ✅ **existe, corre y está probado de punta a punta: 19 rutas / 34 operaciones** (`/openapi.json` v0.2.0), recorrido completo verde por el proxy | `bash scripts/smoke_api.sh --e2e` → **39 OK, 0 fallas, 0 bloqueadas, exit 0** (`docs/qa/evidencia/smoke-api-20260922-000358.txt`); capa nueva: **103 pruebas, 89 % de cobertura** |
+| **API FastAPI real** | ✅ **existe, corre y está probado de punta a punta: 20 rutas / 35 operaciones** (`/openapi.json` v0.3.0), recorrido completo verde por el proxy | `bash scripts/smoke_api.sh --e2e` → **39 OK, 0 fallas, 0 bloqueadas, exit 0** (`docs/qa/evidencia/smoke-api-20260922-000358.txt`); capa nueva: **119 pruebas, 90 % de cobertura** |
 | Autenticación, panel, estudiantes, cursos, matrículas | ✅ **funcionando en el compose real**: `POST /api/v1/auth/login` → 200 + token; `/api/v1/dashboard` → **12 / 7 / 23 / 1**; `?q=45123456` → 1 fila con acentos correctos; `?q=huaman` = `?q=Huamán` = `?q=HUAMAN` → 1/1/1 | salidas reales en §2.1 |
 | **Notas y boleta** | ✅ **funcionando:** en el recorrido E2E del smoke, 3 notas → boleta con **16.00** y promedio ponderado | `docs/qa/evidencia/smoke-api-20260922-000358.txt` |
 | **`POST /api/v1/matriculas` y `POST /api/v1/usuarios`** | ✅ **cerrados:** los dos `500` por `AmbiguousParameter` (BUG-08/BUG-09) quedaron sin reproducir en la corrida verde de 39/39 | `docs/qa/evidencia/api-500-ambiguousparameter.txt` (el bug) · smoke 39/39 (el cierre) |
@@ -56,7 +56,7 @@ BUG-08/BUG-09 quedaron verdes en la corrida de 39/39.
 
 ## 2. Contrato de la API
 
-### 2.1 Lo que existe HOY: el API real (34 operaciones)
+### 2.1 Lo que existe HOY: el API real (35 operaciones)
 
 Contrato real, enumerado desde su propio OpenAPI (**API del compose, por el proxy en `:8080`**):
 
@@ -192,7 +192,44 @@ agregadas ya eran baratas. La caché no es un adorno: se mide y se reporta lo qu
 | **Fechas** | `timestamptz` en ISO-8601 con zona; la API responde en `America/Lima` | idem |
 | **Salud y métricas** | `/api/v1/health` por el proxy; `/metrics` **directo** en `:8000`; nginx **404** en `/health` y `/metrics` | D-17 |
 
-### 2.5 Requisitos que la infraestructura le impone al código (contrato con @dev)
+### 2.6 Autenticación y permisos: OAuth2 con scopes (D-29)
+
+El API es su propio servidor de autorización: **OAuth2 password grant** (RFC 6749 §4.3) en
+`POST /api/v1/auth/token`, con **scopes** por rol. No hay Keycloak ni proveedor externo: es el mismo
+proceso FastAPI, la misma imagen y ningún contenedor nuevo.
+
+| Pieza | Cómo funciona |
+|---|---|
+| `POST /api/v1/auth/token` | Form-urlencoded: `grant_type=password`, `username`, `password` y `scope` (opcional: sin él se firman todos los del rol). `client_id`/`client_secret` son opcionales (el SPA es cliente público) y se validan si llegan |
+| Respuesta | `{access_token, token_type: "bearer", expires_in, scope}` con la forma del RFC 6749 §5.1 |
+| `POST /api/v1/auth/login` | Alias en JSON para el SPA (no cambia nada en el frontend). El token que emite **ya lleva los scopes** del rol |
+| Token | JWT HS256 con `sub`, `usuario`, `rol`, **`scp`** (lista de scopes), `iat`, `exp` |
+| Autorización | Cada endpoint exige su scope: `Depends(requiere_scope("matriculas:escribir"))`. Si al token le falta → **403** `{"error":"insufficient_scope"}` + `WWW-Authenticate: Bearer error="insufficient_scope", scope="..."` |
+| Errores del token | `invalid_client` (401), `invalid_grant` (400), `invalid_scope` (400), `unsupported_grant_type` (400), todos con `error` / `error_description` |
+| Swagger | Botón **Authorize** con el flujo OAuth2 y el candado por endpoint; `/auth/yo` exige `perfil:leer` |
+
+**Los 16 scopes y quién los tiene:**
+
+| Scope | admin | asistente |
+|---|---|---|
+| `perfil:leer`, `panel:leer`, `estudiantes:leer`, `cursos:leer`, `matriculas:leer`, `notas:leer`, `boleta:leer` | ✅ | ✅ |
+| `estudiantes:escribir`, `cursos:escribir`, `matriculas:escribir`, `notas:escribir` | ✅ | ✅ |
+| `estudiantes:eliminar`, `cursos:eliminar`, `matriculas:eliminar` | ✅ | ❌ |
+| `usuarios:admin`, `auditoria:leer` | ✅ | ❌ |
+
+Ese reparto reproduce exactamente el comportamiento anterior (cuando existía la dependencia `solo_admin`): el
+rol ya no se consulta en cada endpoint, se consulta **una vez** al emitir el token, que sale con los permisos
+que le corresponden. La bitácora guarda cada petición de token con la contraseña y el secreto en `***`.
+
+```bash
+# token con todos los scopes del rol
+curl -s localhost:8000/api/v1/auth/token -d grant_type=password -d username=admin -d password=… 
+
+# token limitado: sirve para leer estudiantes y para nada más
+curl -s localhost:8000/api/v1/auth/token -d grant_type=password -d username=admin -d password=… -d "scope=estudiantes:leer"
+```
+
+### 2.7 Requisitos que la infraestructura le impone al código (contrato con @dev)
 
 Fuente: `docs/devops/plan-contenedores-ci.md` §3. Si el código no cumple esto, **el stack no arranca**:
 

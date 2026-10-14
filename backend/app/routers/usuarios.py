@@ -13,7 +13,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.deps import solo_admin
+from app.deps import requiere_scope
 from app.models import Usuario
 from app.schemas import UsuarioActualizar, UsuarioEntrada, UsuarioSalida
 from app.security import generar_hash
@@ -54,7 +54,7 @@ def _duplicados(db: Session, nombre_usuario: str | None, email: str | None, prop
 
 
 @router.get("", response_model=list[UsuarioSalida])
-def listar(db: Session = Depends(get_db), _: Usuario = Depends(solo_admin)) -> list[dict]:
+def listar(db: Session = Depends(get_db), _: Usuario = Depends(requiere_scope("usuarios:admin"))) -> list[dict]:
     usuarios = (
         db.execute(text("SELECT id, nombre_usuario, email, nombre_completo, rol, estado, creado_en FROM usuarios ORDER BY id"))
         .mappings()
@@ -64,7 +64,7 @@ def listar(db: Session = Depends(get_db), _: Usuario = Depends(solo_admin)) -> l
 
 
 @router.get("/{usuario_id}", response_model=UsuarioSalida)
-def obtener(usuario_id: int, db: Session = Depends(get_db), _: Usuario = Depends(solo_admin)) -> dict:
+def obtener(usuario_id: int, db: Session = Depends(get_db), _: Usuario = Depends(requiere_scope("usuarios:admin"))) -> dict:
     usuario = db.get(Usuario, usuario_id)
     if usuario is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No existe el usuario {usuario_id}.")
@@ -72,7 +72,7 @@ def obtener(usuario_id: int, db: Session = Depends(get_db), _: Usuario = Depends
 
 
 @router.post("", response_model=UsuarioSalida, status_code=status.HTTP_201_CREATED)
-def crear(datos: UsuarioEntrada, db: Session = Depends(get_db), _: Usuario = Depends(solo_admin)) -> dict:
+def crear(datos: UsuarioEntrada, db: Session = Depends(get_db), _: Usuario = Depends(requiere_scope("usuarios:admin"))) -> dict:
     _duplicados(db, datos.nombre_usuario, datos.email)
     usuario = Usuario(
         nombre_usuario=datos.nombre_usuario,
@@ -94,7 +94,7 @@ def actualizar(
     usuario_id: int,
     datos: UsuarioActualizar,
     db: Session = Depends(get_db),
-    usuario_sesion: Usuario = Depends(solo_admin),
+    usuario_sesion: Usuario = Depends(requiere_scope("usuarios:admin")),
 ) -> dict:
     usuario = db.get(Usuario, usuario_id)
     if usuario is None:
@@ -119,7 +119,7 @@ def actualizar(
 def eliminar(
     usuario_id: int,
     db: Session = Depends(get_db),
-    usuario_sesion: Usuario = Depends(solo_admin),
+    usuario_sesion: Usuario = Depends(requiere_scope("usuarios:admin")),
 ) -> Response:
     usuario = db.get(Usuario, usuario_id)
     if usuario is None:

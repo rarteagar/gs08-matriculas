@@ -15,8 +15,14 @@ import jwt
 from fastapi import HTTPException, status
 
 from app.config import config
+from app.scopes import de_rol
 
 CABECERA_401 = {"WWW-Authenticate": "Bearer"}
+
+
+def scopes_del_usuario(usuario) -> list[str]:
+    """Los scopes que le corresponden por su rol (RBAC -> scopes)."""
+    return de_rol(usuario.rol)
 
 
 def verificar_password(password: str, hash_guardado: str) -> bool:
@@ -39,13 +45,15 @@ def generar_hash(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=10)).decode("utf-8")
 
 
-def crear_token(usuario) -> tuple[str, datetime]:
+def crear_token(usuario, scopes: list[str] | None = None) -> tuple[str, datetime]:
+    """Firma el JWT. Los scopes viajan en `scp` (lo que el token puede hacer)."""
     ahora = datetime.now(UTC)
     expira = ahora + timedelta(minutes=config.access_token_expire_minutes)
     payload = {
         "sub": str(usuario.id),
         "usuario": usuario.nombre_usuario,
         "rol": usuario.rol,
+        "scp": list(scopes) if scopes is not None else de_rol(usuario.rol),
         "iat": int(ahora.timestamp()),
         "exp": expira,
     }

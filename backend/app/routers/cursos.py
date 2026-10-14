@@ -15,7 +15,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.deps import solo_admin, usuario_actual
+from app.deps import requiere_scope
 from app.models import Curso
 from app.schemas import CursoEntrada, CursoSalida, PaginaCursos, paginas
 
@@ -32,7 +32,7 @@ def listar(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=1, le=100),
     db: Session = Depends(get_db),
-    _: object = Depends(usuario_actual),
+    _: object = Depends(requiere_scope("cursos:leer")),
 ) -> dict:
     condiciones: list[str] = []
     parametros: dict = {"limite": page_size, "salto": (page - 1) * page_size}
@@ -64,7 +64,7 @@ def listar(
 
 
 @router.get("/{curso_id}", response_model=CursoSalida)
-def obtener(curso_id: int, db: Session = Depends(get_db), _: object = Depends(usuario_actual)) -> dict:
+def obtener(curso_id: int, db: Session = Depends(get_db), _: object = Depends(requiere_scope("cursos:leer"))) -> dict:
     fila = db.execute(text(f"SELECT {CAMPOS} FROM cursos c WHERE c.id = :id"), {"id": curso_id}).mappings().first()
     if fila is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No existe el curso {curso_id}.")
@@ -72,7 +72,7 @@ def obtener(curso_id: int, db: Session = Depends(get_db), _: object = Depends(us
 
 
 @router.post("", response_model=CursoSalida, status_code=status.HTTP_201_CREATED)
-def crear(datos: CursoEntrada, db: Session = Depends(get_db), _: object = Depends(usuario_actual)) -> dict:
+def crear(datos: CursoEntrada, db: Session = Depends(get_db), _: object = Depends(requiere_scope("cursos:escribir"))) -> dict:
     repetido = db.execute(text("SELECT id FROM cursos WHERE codigo = :codigo"), {"codigo": datos.codigo}).scalar_one_or_none()
     if repetido is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Ya existe un curso con ese código.")
@@ -89,7 +89,7 @@ def actualizar(
     curso_id: int,
     datos: CursoEntrada,
     db: Session = Depends(get_db),
-    _: object = Depends(usuario_actual),
+    _: object = Depends(requiere_scope("cursos:escribir")),
 ) -> dict:
     curso = db.get(Curso, curso_id)
     if curso is None:
@@ -111,7 +111,7 @@ def eliminar(
     curso_id: int,
     confirmar: bool = Query(default=False),
     db: Session = Depends(get_db),
-    _: object = Depends(solo_admin),
+    _: object = Depends(requiere_scope("cursos:eliminar")),
 ) -> Response:
     curso = db.get(Curso, curso_id)
     if curso is None:

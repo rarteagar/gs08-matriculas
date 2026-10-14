@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 from app import mongo
 from app.boleta import calcular
 from app.db import get_db
-from app.deps import solo_admin, usuario_actual
+from app.deps import requiere_scope
 from app.models import Curso, Estudiante, Matricula, Nota, Usuario
 from app.schemas import (
     Boleta,
@@ -75,7 +75,7 @@ def listar(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=25, ge=1, le=100),
     db: Session = Depends(get_db),
-    _: object = Depends(usuario_actual),
+    _: object = Depends(requiere_scope("matriculas:leer")),
 ) -> dict:
     condiciones: list[str] = []
     parametros: dict = {"limite": page_size, "salto": (page - 1) * page_size}
@@ -111,7 +111,7 @@ def listar(
 
 
 @router.get("/{matricula_id}", response_model=MatriculaSalida)
-def obtener(matricula_id: int, db: Session = Depends(get_db), _: object = Depends(usuario_actual)) -> dict:
+def obtener(matricula_id: int, db: Session = Depends(get_db), _: object = Depends(requiere_scope("matriculas:leer"))) -> dict:
     fila = _fila_matricula(db, matricula_id)
     if fila is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No existe la matrícula {matricula_id}.")
@@ -141,7 +141,9 @@ def _verificar_duplicado(db: Session, estudiante_id: int, curso_id: int, periodo
 
 
 @router.post("", response_model=MatriculaSalida, status_code=status.HTTP_201_CREATED)
-def crear(datos: MatriculaEntrada, db: Session = Depends(get_db), _: object = Depends(usuario_actual)) -> dict:
+def crear(
+    datos: MatriculaEntrada, db: Session = Depends(get_db), _: object = Depends(requiere_scope("matriculas:escribir"))
+) -> dict:
     _verificar_referencias(db, datos.estudiante_id, datos.curso_id)
     _verificar_duplicado(db, datos.estudiante_id, datos.curso_id, datos.periodo)
     matricula = Matricula(**datos.model_dump())
@@ -157,7 +159,7 @@ def actualizar(
     matricula_id: int,
     datos: MatriculaActualizar,
     db: Session = Depends(get_db),
-    _: object = Depends(usuario_actual),
+    _: object = Depends(requiere_scope("matriculas:escribir")),
 ) -> dict:
     matricula = db.get(Matricula, matricula_id)
     if matricula is None:
@@ -178,7 +180,9 @@ def actualizar(
 
 
 @router.delete("/{matricula_id}", status_code=status.HTTP_204_NO_CONTENT)
-def eliminar(matricula_id: int, db: Session = Depends(get_db), _: object = Depends(solo_admin)) -> Response:
+def eliminar(
+    matricula_id: int, db: Session = Depends(get_db), _: object = Depends(requiere_scope("matriculas:eliminar"))
+) -> Response:
     matricula = db.get(Matricula, matricula_id)
     if matricula is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No existe la matrícula {matricula_id}.")
@@ -191,7 +195,7 @@ def eliminar(matricula_id: int, db: Session = Depends(get_db), _: object = Depen
 # Notas de una matrícula (CU-14 / C-24..C-26, C-29)
 # ------------------------------------------------------------
 @router.get("/{matricula_id}/notas", response_model=list[NotaSalida])
-def listar_notas(matricula_id: int, db: Session = Depends(get_db), _: object = Depends(usuario_actual)) -> list[dict]:
+def listar_notas(matricula_id: int, db: Session = Depends(get_db), _: object = Depends(requiere_scope("notas:leer"))) -> list[dict]:
     if db.get(Matricula, matricula_id) is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No existe la matrícula {matricula_id}.")
     filas = (
@@ -225,7 +229,7 @@ def registrar_nota(
     matricula_id: int,
     datos: NotaEntrada,
     db: Session = Depends(get_db),
-    _: object = Depends(usuario_actual),
+    _: object = Depends(requiere_scope("notas:escribir")),
 ) -> dict:
     matricula = db.get(Matricula, matricula_id)
     if matricula is None:
@@ -260,7 +264,7 @@ def actualizar_nota(
     nota_id: int,
     datos: NotaEntrada,
     db: Session = Depends(get_db),
-    _: object = Depends(usuario_actual),
+    _: object = Depends(requiere_scope("notas:escribir")),
 ) -> dict:
     """Corregir una nota ya registrada: se permite aunque la matrícula se haya retirado después (RN-14 solo aplica al INSERT)."""
     nota = db.get(Nota, nota_id)
@@ -283,7 +287,7 @@ def actualizar_nota(
 
 
 @router_notas.delete("/{nota_id}", status_code=status.HTTP_204_NO_CONTENT)
-def eliminar_nota(nota_id: int, db: Session = Depends(get_db), _: object = Depends(usuario_actual)) -> Response:
+def eliminar_nota(nota_id: int, db: Session = Depends(get_db), _: object = Depends(requiere_scope("notas:escribir"))) -> Response:
     nota = db.get(Nota, nota_id)
     if nota is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No existe la nota {nota_id}.")
@@ -300,7 +304,7 @@ def boleta(
     estudiante_id: int,
     periodo: str = Query(min_length=7, max_length=7),
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(usuario_actual),
+    usuario: Usuario = Depends(requiere_scope("boleta:leer")),
 ) -> dict:
     """La fórmula vive en app/boleta.py: la comparten esta ruta y la consulta GraphQL."""
     datos = calcular(db, estudiante_id, periodo)
@@ -316,7 +320,7 @@ def boleta(
 def boleta_archivada(
     estudiante_id: int,
     periodo: str = Query(min_length=7, max_length=7),
-    _: Usuario = Depends(usuario_actual),
+    _: Usuario = Depends(requiere_scope("boleta:leer")),
 ) -> dict:
     """Copia archivada de la última boleta emitida de ese periodo (documento en MongoDB)."""
     documento = mongo.boleta_guardada(estudiante_id, periodo)

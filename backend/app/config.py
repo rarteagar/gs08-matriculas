@@ -38,6 +38,12 @@ class Configuracion(BaseSettings):
     loki_url: str = ""
     servicio: str = "gs08-api"
 
+    # --- Cliente OAuth2 propio (el SPA) ---
+    # El endpoint de token exige estas credenciales de cliente (RFC 6749 §4.3), además
+    # del usuario y la contraseña. En producción se cambian por variables de entorno.
+    oauth_client_id: str = "gs08-spa"
+    oauth_client_secret: str = "gs08-spa-secreto-local"
+
     @property
     def origenes_cors(self) -> list[str]:
         return [o.strip() for o in self.origen_cors.split(",") if o.strip()]

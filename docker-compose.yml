@@ -29,6 +29,10 @@ x-api-common: &api-common
     DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-gs08}:${POSTGRES_PASSWORD:-gs08_dev_pwd}@db:5432/${POSTGRES_DB:-gs08_matriculas}
     SECRET_KEY: ${SECRET_KEY:-cambiar-esta-clave-en-produccion}
     ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+    # Cliente OAuth2 propio (D-29): el SPA puede pedir el token sin estas credenciales,
+    # pero si las manda se validan. En producción se cambian.
+    OAUTH_CLIENT_ID: ${OAUTH_CLIENT_ID:-gs08-spa}
+    OAUTH_CLIENT_SECRET: ${OAUTH_CLIENT_SECRET:-gs08-spa-secreto-local}
     # Segunda base documental (bitácora + boletas archivadas) y caché distribuida del panel.
     MONGO_URL: ${MONGO_URL:-mongodb://mongo:27017}
     MONGO_BD: ${MONGO_BD:-gs08_bitacora}

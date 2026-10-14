@@ -170,3 +170,37 @@ curl -sG localhost:3100/loki/api/v1/query_range --data-urlencode 'query={servici
 **Si algo de esto no responde:** `docker compose ps` (los tres servicios deben estar `healthy`), y revisar que
 `MONGO_URL` / `REDIS_URL` estén definidas en el entorno del API (`docker compose exec api env | grep -E 'MONGO|REDIS|LOKI'`).
 Sin ellas el API funciona igual, pero sin bitácora, sin caché y sin logs en Loki: eso es lo esperado, no un error.
+
+## 9. Autenticacion OAuth2 (password grant con scopes)
+
+```bash
+# --- token con TODOS los scopes del rol (el SPA lo pide asi, pero en JSON) ---
+TOKEN=$(curl -s localhost:8000/api/v1/auth/token \
+  -d grant_type=password -d username=admin -d "password=$CLAVE" | python -c "import sys,json;print(json.load(sys.stdin)['access_token'])")
+
+# respuesta completa: token_type, expires_in y la lista de scopes firmados
+curl -s localhost:8000/api/v1/auth/token -d grant_type=password -d username=admin -d "password=$CLAVE"
+
+# --- token LIMITADO (solo lectura de estudiantes): sirve para leer y para nada mas ---
+CORTO=$(curl -s localhost:8000/api/v1/auth/token -d grant_type=password -d username=admin \
+  -d "password=$CLAVE" -d "scope=estudiantes:leer" | python -c "import sys,json;print(json.load(sys.stdin)['access_token'])")
+curl -s -o /dev/null -w "GET estudiantes  -> %{http_code}\n" localhost:8000/api/v1/estudiantes -H "Authorization: Bearer $CORTO"
+curl -s -i -X POST localhost:8000/api/v1/estudiantes -H "Authorization: Bearer $CORTO" \
+  -H "Content-Type: application/json" -d '{"codigo":"X1","dni":"70000001","nombres":"A","apellidos":"B"}' | head -1
+# -> 403 insuficiente_scope + cabecera WWW-Authenticate
+
+# --- errores con la forma del RFC 6749 ---
+curl -s localhost:8000/api/v1/auth/token -d grant_type=password -d username=admin -d password=mal   # invalid_grant
+curl -s localhost:8000/api/v1/auth/token -d grant_type=client_credentials -d username=admin -d "password=$CLAVE"  # unsupported_grant_type
+curl -s localhost:8000/api/v1/auth/token -d grant_type=password -d username=admin -d "password=$CLAVE" -d "scope=volcan:explotar"  # invalid_scope
+
+# --- los scopes quedan dentro del JWT (campo scp) ---
+python -c "import base64,json,sys; p='$TOKEN'.split('.')[1]; p+='='*(-len(p)%4); print(json.loads(base64.urlsafe_b64decode(p))['scp'])"
+
+# --- Swagger: boton Authorize con el flujo OAuth2 y candado por endpoint ---
+# http://localhost:8000/docs
+```
+
+**Reparto por rol** (fuente: `backend/app/scopes.py`): `admin` tiene los 16 scopes; `asistente` todos menos
+`estudiantes:eliminar`, `cursos:eliminar`, `matriculas:eliminar`, `usuarios:admin` y `auditoria:leer`.
+El endpoint `/api/v1/auth/login` (JSON) sigue existiendo para el SPA y su token ya lleva los scopes.

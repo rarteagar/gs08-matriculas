@@ -8,7 +8,7 @@
 from fastapi import APIRouter, Depends, Query
 
 from app import mongo
-from app.deps import solo_admin
+from app.deps import requiere_scope
 from app.models import Usuario
 
 router = APIRouter(prefix="/api/v1/auditoria", tags=["auditoría"])
@@ -19,7 +19,7 @@ def listar_bitacora(
     entidad: str | None = Query(default=None, description="estudiante, curso, matricula, nota o usuario"),
     accion: str | None = Query(default=None, description="crear, editar o eliminar"),
     limite: int = Query(default=25, ge=1, le=200),
-    _: Usuario = Depends(solo_admin),
+    _: Usuario = Depends(requiere_scope("auditoria:leer")),
 ) -> dict:
     """Últimas operaciones registradas en la bitácora documental.
 
