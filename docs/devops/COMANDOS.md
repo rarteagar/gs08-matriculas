@@ -205,7 +205,7 @@ python -c "import base64,json,sys; p='$TOKEN'.split('.')[1]; p+='='*(-len(p)%4);
 `estudiantes:eliminar`, `cursos:eliminar`, `matriculas:eliminar`, `usuarios:admin` y `auditoria:leer`.
 El endpoint `/api/v1/auth/login` (JSON) sigue existiendo para el SPA y su token ya lleva los scopes.
 
-## 9. Despliegue en produccion (VPS del grupo con Coolify)
+## 10. Despliegue en produccion (VPS del grupo con Coolify)
 
 El stack real corre en el VPS y lo administra Coolify: compose propio, Traefik y certificado Let's Encrypt.
 Dominio: `https://gs08-matriculas.mlarca.com` · app `gs08-stack` (`b1hwn3k2vg4vhgcivehtt7xl`).
@@ -221,8 +221,7 @@ curl -sS -X POST -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application
 curl -sS -H "Authorization: Bearer $TOKEN" "$PANEL/api/v1/deployments/<deployment_uuid>"   # in_progress -> finished
 
 # --- verificar produccion ---
-curl -s -o /dev/null -w '%{http_code}
-' https://gs08-matriculas.mlarca.com/api/v1/health   # 200
+curl -s -o /dev/null -w '%{http_code}\n' https://gs08-matriculas.mlarca.com/api/v1/health   # 200
 curl -s https://gs08-matriculas.mlarca.com/ | grep -o 'assets/index-[A-Za-z0-9_-]*\.js'    # bundle servido
 ```
 
