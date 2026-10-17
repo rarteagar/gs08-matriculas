@@ -14,7 +14,9 @@ name: CD · Entrega continua
 
 on:
   workflow_run:
-    workflows: ["CI"]
+    # OJO: aquí va el NOMBRE exacto del workflow de CI (el campo `name:` de ci.yml).
+    # Con "CI" a secas el disparador no coincide nunca y el CD no corría (arreglado el 14/10/2026).
+    workflows: ["CI · Integración continua"]
     types: [completed]
     branches: [main]
   workflow_dispatch:
