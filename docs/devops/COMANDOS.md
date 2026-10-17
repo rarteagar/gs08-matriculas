@@ -204,3 +204,35 @@ python -c "import base64,json,sys; p='$TOKEN'.split('.')[1]; p+='='*(-len(p)%4);
 **Reparto por rol** (fuente: `backend/app/scopes.py`): `admin` tiene los 16 scopes; `asistente` todos menos
 `estudiantes:eliminar`, `cursos:eliminar`, `matriculas:eliminar`, `usuarios:admin` y `auditoria:leer`.
 El endpoint `/api/v1/auth/login` (JSON) sigue existiendo para el SPA y su token ya lleva los scopes.
+
+## 9. Despliegue en produccion (VPS del grupo con Coolify)
+
+El stack real corre en el VPS y lo administra Coolify: compose propio, Traefik y certificado Let's Encrypt.
+Dominio: `https://gs08-matriculas.mlarca.com` · app `gs08-stack` (`b1hwn3k2vg4vhgcivehtt7xl`).
+
+```bash
+# --- pedir el despliegue y seguirlo (el token no se escribe en el repositorio) ---
+PANEL=https://panel.mlarca.com
+APP=b1hwn3k2vg4vhgcivehtt7xl
+
+curl -sS -X POST -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json'   -d "{\"uuid\":\"$APP\",\"force\":false}" "$PANEL/api/v1/deploy"
+# -> {"deployments":[{"deployment_uuid":"...","message":"Application gs08-stack deployment queued."}]}
+
+curl -sS -H "Authorization: Bearer $TOKEN" "$PANEL/api/v1/deployments/<deployment_uuid>"   # in_progress -> finished
+
+# --- verificar produccion ---
+curl -s -o /dev/null -w '%{http_code}
+' https://gs08-matriculas.mlarca.com/api/v1/health   # 200
+curl -s https://gs08-matriculas.mlarca.com/ | grep -o 'assets/index-[A-Za-z0-9_-]*\.js'    # bundle servido
+```
+
+**Entrega continua desde GitHub Actions** (`.github/workflows/cd.yml`, job `desplegar_vps`): cuando el CI termina
+en verde sobre `main`, pide el despliegue a Coolify, espera a `finished` y comprueba `health` y el bundle. Esta
+apagado hasta que el dueno del repositorio configure, en *Settings → Secrets and variables → Actions*:
+
+| Que | Nombre | Para que |
+|---|---|---|
+| Secret | `COOLIFY_TOKEN` | token de API del panel (Coolify → Keys) |
+| Variable | `VPS_DEPLOY_ENABLED` | `true` para activarlo |
+
+Opcionales: `COOLIFY_URL`, `COOLIFY_APP_UUID` y `PROD_URL` (si no estan, usa el panel, la app y el dominio reales).

@@ -165,7 +165,92 @@ jobs:
           kubectl -n gs08 get pods
 
   # ---------------------------------------------------------
-  # 3. Publicar la SPA en el hosting compartido (cPanel + FTP)
+  # 3. Desplegar en el VPS (Coolify) -- la nube del proyecto
+  #
+  # El stack real vive en el VPS del grupo y lo administra Coolify
+  # (compose + Traefik + Let's Encrypt). Este job pide el despliegue
+  # por la API de Coolify DESPUES del CI en verde sobre main, espera a
+  # que termine y verifica produccion (health y el bundle servido).
+  #
+  # Requisitos (los configura el dueno del repositorio):
+  #   * Secret   COOLIFY_TOKEN        -> token de API del panel (Coolify > Keys)
+  #   * Variable VPS_DEPLOY_ENABLED   -> 'true' para activarlo
+  #   * Variable COOLIFY_URL          -> panel (por defecto https://panel.mlarca.com)
+  #   * Variable COOLIFY_APP_UUID     -> uuid de la app (por defecto el de gs08-stack)
+  #   * Variable PROD_URL             -> dominio a verificar (por defecto el de produccion)
+  # Si VPS_DEPLOY_ENABLED no existe, el job se salta solo y el pipeline
+  # queda verde publicando solo las imagenes.
+  # ---------------------------------------------------------
+  desplegar_vps:
+    name: Despliegue en el VPS (Coolify)
+    runs-on: ubuntu-24.04
+    needs: publicar
+    if: ${{ vars.VPS_DEPLOY_ENABLED == 'true' }}
+    environment: produccion
+    steps:
+      - name: Pedir el despliegue a Coolify
+        id: pedido
+        env:
+          COOLIFY_URL: ${{ vars.COOLIFY_URL || 'https://panel.mlarca.com' }}
+          COOLIFY_APP: ${{ vars.COOLIFY_APP_UUID || 'b1hwn3k2vg4vhgcivehtt7xl' }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+        run: |
+          respuesta=$(curl -fsS -X POST \
+            -H "Authorization: Bearer $COOLIFY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"uuid\":\"$COOLIFY_APP\",\"force\":false}" \
+            "$COOLIFY_URL/api/v1/deploy")
+          echo "$respuesta"
+          uuid=$(echo "$respuesta" | python3 -c 'import json,sys; print(json.load(sys.stdin)["deployments"][0]["deployment_uuid"])')
+          echo "deployment=$uuid" >> "$GITHUB_OUTPUT"
+          echo "Despliegue pedido: $uuid"
+
+      - name: Esperar a que el despliegue termine
+        env:
+          COOLIFY_URL: ${{ vars.COOLIFY_URL || 'https://panel.mlarca.com' }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+          DEPLOYMENT: ${{ steps.pedido.outputs.deployment }}
+        run: |
+          for intento in $(seq 1 60); do
+            estado=$(curl -fsS -H "Authorization: Bearer $COOLIFY_TOKEN" \
+              "$COOLIFY_URL/api/v1/deployments/$DEPLOYMENT" \
+              | python3 -c 'import json,sys; print(json.load(sys.stdin)["status"])')
+            echo "[$intento] $estado"
+            if [ "$estado" = "finished" ]; then
+              echo "### Despliegue en el VPS terminado" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            if [ "$estado" = "failed" ] || [ "$estado" = "cancelled" ]; then
+              echo "::error::el despliegue terminó en $estado"
+              exit 1
+            fi
+            sleep 10
+          done
+          echo "::error::el despliegue no terminó en el tiempo esperado"
+          exit 1
+
+      - name: Verificar la producción
+        env:
+          PROD_URL: ${{ vars.PROD_URL || 'https://gs08-matriculas.mlarca.com' }}
+        run: |
+          codigo=$(curl -sS -o /dev/null -w '%{http_code}' "$PROD_URL/api/v1/health")
+          echo "health: $codigo"
+          [ "$codigo" = "200" ] || { echo "::error::health respondió $codigo"; exit 1; }
+          bundle=$(curl -sS "$PROD_URL/" | grep -oE 'assets/index-[A-Za-z0-9_-]+\.js' | head -1)
+          echo "bundle servido: $bundle"
+          [ -n "$bundle" ] || { echo "::error::no se pudo leer el bundle de la SPA"; exit 1; }
+          {
+            echo "### Producción verificada"
+            echo ""
+            echo "| Dato | Valor |"
+            echo "|---|---|"
+            echo "| Health | $codigo |"
+            echo "| Bundle | $bundle |"
+            echo "| Commit | ${{ github.event.workflow_run.head_sha || github.sha }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------
+  # 4. Publicar la SPA en el hosting compartido (cPanel + FTP)
   #
   # El hosting compartido solo sirve estaticos, asi que aqui se
   # compila el frontend y se sube el dist/ por FTP/FTPS al
