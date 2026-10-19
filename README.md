@@ -183,6 +183,29 @@ Criterio de terminado de este README (TD-01): «seguido solo el README, el stack
 Comandos del día a día (logs, consola SQL, reconstruir una sola imagen, borrar el volumen) y el runbook
 completo de Kubernetes están en **`docs/devops/COMANDOS.md`**.
 
+### Arranque sin Docker
+
+```bash
+# --- solo el frontend (SPA React 19 + Vite) ---
+cd frontend
+npm install            # reconstruye node_modules desde package-lock.json
+npm run dev            # desarrollo en http://localhost:5173
+npm run build          # compila a dist/ (es lo que sirve nginx)
+npm run test:unit      # 25 pruebas, incluida la batería de accesibilidad con axe-core
+npm run lint
+
+# --- solo el API (FastAPI) ---
+cd backend
+python -m venv .venv
+.venv\Scripts\activate                 # Windows        ·  source .venv/bin/activate en Linux/macOS
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000     # Swagger en /docs, GraphQL en /graphql
+pytest -q                              # 121 pruebas, 90 % de cobertura
+```
+
+Lo mismo, con el detalle de qué trae cada carpeta, está en **`LEEME-FUENTES.txt`**, que acompaña al ZIP de
+fuentes (`GS08 - Matriculas y Notas - Fuentes.zip`).
+
 > **Ojo con `docker compose down -v`**: borra los volúmenes y con ellos los datos locales. Es **destructivo**
 > y es también la única forma de que `db/init/*.sql` se vuelva a ejecutar (el entrypoint de `postgres` los
 > corre una sola vez, al crear el volumen).
