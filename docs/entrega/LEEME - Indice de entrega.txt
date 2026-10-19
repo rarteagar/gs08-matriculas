@@ -2,8 +2,8 @@ ENTREGA — TRABAJO COLABORATIVO
 Curso: Implementación de Soluciones para Plataformas Web · GS08 (ISP-08-2025)
 Docente: Dr. Jack Harry Peralta Cáceres
 Proyecto: GS08 · Matrículas y Notas — Proyecto Integrado
-Integrantes: Arteaga Rullier, Roberto Carlos (Scrum Master y DevOps) · Díaz Cárdenas, Jorge Luis
-             (Backend) · Inocencio Gargate, Dalcir (Frontend y Documentación)
+Integrantes: Arteaga Rullier, Roberto Carlos (Scrum Master, DevOps y Backend) ·
+             Inocencio Gargate, Dalcir (Frontend y Documentación)
 Fecha de entrega: 19 de octubre de 2026
 
 ────────────────────────────────────────────────────────────────────────────

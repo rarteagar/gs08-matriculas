@@ -163,8 +163,8 @@ hecho. Todo se redacta sobre la evidencia ya en el repo (`docs/devops/evidencia-
 | **TD-06** | `docs/actas/retrospectiva-sprint-0.md` | **ahora** | qué salió bien / qué no / acciones con dueño: las 3 correcciones de @devops (round-robin con `zone`, `max_fails` + `proxy_next_upstream`, el gauge que no existe en el instrumentator 8.1.0), los hallazgos de @analista (LIKE vs ILIKE, `$2y$`, ids con huecos), los 6 bugs de @qa (incluidos los 4 de su propio script) y las 5 correcciones del PM (BUG-02/03/04 y mi conteo: dije 35, el real es **39**). Cada hallazgo con su evidencia y su acción cerrada o asignada a T<xx> |
 | **TD-07** | `docs/decisiones.md` | **ahora** (mantenido por @pm) | tabla con fecha, motivo y estado; stack (D-00), minikube driver docker (D-04), rama `main` (D-05) y las abiertas (A-01/A-02). **@documentador lo cita tal cual, no lo reescribe ni lo duplica en `docs/`** |
 | **TD-08** | `docs/seguridad-etica-sostenibilidad.md` | **ahora** (crece con S2–S3) | **Seguridad:** bcrypt coste 10 y hash `$2y$` del seed, tokens/roles y `403` por rol, 4 headers de nginx (TC-02), ningún secreto en git (`k8s/02-secret.example.yaml`), SBOM/provenance de GHCR, superficie expuesta en local: **8080** (SPA/nginx), **8000** (API), **5432** (PostgreSQL), **9090** (Prometheus), **3000** (Grafana); 55432/55433 solo para las bases de verificación. *(El «4000» que decía este renglón no existe: verificado contra `docker-compose.yml` y `curl` el 21/09 — corregido)*. **Ética:** DNI y datos del estudiante = dato personal (Ley 29733), minimización (no se guarda nada de salud ni de menores), notas como dato sensible, notas del legacy como datos de prueba ficticios, IA usada declarada. **Sostenibilidad:** imágenes alpine, un contenedor por servicio, `k8s` en una laptop sin nube, costo 0, mantenibilidad (tests + verificación reproducible). Lo legal se escribe como **mapa a verificar con asesoría**, no como dictamen |
-| **TD-09** | **DOCX + PPTX de entrega académica** | antes de la exposición | **Español, firma grupal, 3 integrantes en la carátula y docente Dr. Jack Harry Peralta Cáceres (D-23).** @documentador arma el **borrador** de los dos a partir de los documentos de arriba, con las mismas tablas y salidas reales; el **PPTX son 10 láminas exactas, una idea por lámina**, con el reparto de la sección «Entregable académico» y el recorrido de `docs/alcance-mvp.md` §3 en la lámina de demo. **La versión académica final —portada, formato, normas de la facultad y firma— la cierra el dueño** (@user). Ningún dato que no esté ya en los documentos con su evidencia |
-| **TD-10** | Actualizar `docs/actas/acta-sprint-0.md` y `retrospectiva-sprint-0.md` (ya escritas) con los **datos del grupo y del docente** (D-23) y con el reparto por integrante | **ahora** | el acta lista a los 3 integrantes con su rol y acredita la asistencia al Sprint 0; la retrospectiva mantiene sus hallazgos y agrega el reparto por bloques. Ninguna cifra cambia |
+| **TD-09** | **DOCX + PPTX de entrega académica** | antes de la exposición | **Español, firma grupal, 2 integrantes en la carátula y docente Dr. Jack Harry Peralta Cáceres (D-23).** @documentador arma el **borrador** de los dos a partir de los documentos de arriba, con las mismas tablas y salidas reales; el **PPTX son 10 láminas exactas, una idea por lámina**, con el reparto de la sección «Entregable académico» y el recorrido de `docs/alcance-mvp.md` §3 en la lámina de demo. **La versión académica final —portada, formato, normas de la facultad y firma— la cierra el dueño** (@user). Ningún dato que no esté ya en los documentos con su evidencia |
+| **TD-10** | Actualizar `docs/actas/acta-sprint-0.md` y `retrospectiva-sprint-0.md` (ya escritas) con los **datos del grupo y del docente** (D-23) y con el reparto por integrante | **ahora** | el acta lista a los 2 integrantes con su rol y acredita la asistencia al Sprint 0; la retrospectiva mantiene sus hallazgos y agrega el reparto por bloques. Ninguna cifra cambia |
 | **TD-11** | **Refrescar las cifras del paquete académico** (los 4 archivos de `docs/informe/`) y el reparto de láminas | **ahora** | ① **32 endpoints**, no 28: `GET /openapi.json` → **16 rutas / 30 operaciones** + `/` y `/metrics` (comando de @dev, verificado por @pm); ② «4 incumplidos por los dos `500`» → **0 incumplidos** y BUG-08/09 documentados como cerrados (arreglo 23:09:10, smoke 23:12:54); ③ la única FALLA que quede en el smoke es **del script** (TC-06), no del API; ④ la lámina de k8s mantiene *«no desplegado en esta máquina»*. **Ninguna cifra propia: se copian de la fuente dueña** (@dev para la API, @qa para los criterios, @devops para infra, **D-25**) y en las 4 versiones a la vez |
 
 **Bloqueos declarados de esta tanda:** TD-03 espera T2.4 (SPA), TD-09 espera TD-01…TD-08 y la fecha de
@@ -175,14 +175,13 @@ minikube (A-02).
 
 ## Entregable académico — grupo, reparto y 10 láminas
 
-**Datos del entregable (decisión D-23, dados por el dueño el 21/09/2026):** grupo de **3 integrantes**,
+**Datos del entregable (decisión D-23, dados por el dueño el 21/09/2026):** grupo de **2 integrantes**,
 informe y exposición **en español**, **con firma grupal**, **10 láminas concisas con una idea por lámina**,
 docente **Dr. Jack Harry Peralta Cáceres**. **Cada integrante documenta y expone su bloque.**
 
 | Integrante (persona real) | Rol académico | Rol en la sala | Documenta | Expone |
 |---|---|---|---|---|
-| **Arteaga Rullier, Roberto** | Scrum Master + DevOps | @pm + @devops | alcance, backlog, decisiones, contenedores, CI, Kubernetes, observabilidad | láminas 1, 3, 7, 8, 10 |
-| **Díaz Cárdenas, Jorge Luis** | Backend | @dev | modelo de datos, reglas de negocio, API, pruebas de API | láminas 4, 5, 9 |
+| **Arteaga Rullier, Roberto** | Scrum Master + DevOps + Backend | @pm + @devops | alcance, backlog, decisiones, contenedores, CI, Kubernetes, observabilidad | láminas 1, 3, 7, 8, 10 |
 | **Inocencio Gargate, Dalcir** | Frontend + Documentador | @dev (SPA) + @documentador | SPA/UX, manual de usuario, actas, informe y PPTX | láminas 2, 6 |
 
 ### Las 10 láminas — orden del deck entregado
@@ -193,7 +192,7 @@ curso y el docente. El orden de la tabla es el del deck, no el de la primera pro
 
 | # | Idea única (título real de la lámina) | Se apoya en | Expone |
 |---|---|---|---|
-| 1 | Carátula: curso, docente, los 3 integrantes con su rol y firma grupal | actas §1.1 + carátula del DOCX | Roberto |
+| 1 | Carátula: curso, docente, los 2 integrantes con su rol y firma grupal | actas §1.1 + carátula del DOCX | Roberto |
 | 2 | Sprint 0 → Sprint 4: entregado, bloqueado y retrospectiva | `docs/actas/retrospectiva-sprint-0.md` | Roberto |
 | 3 | El problema y el alcance del MVP: qué entra y qué NO entra | `docs/alcance-mvp.md` §1 y §5 | Dalcir |
 | 4 | Arquitectura y stack | `docs/arquitectura.md` | Roberto |

@@ -44,11 +44,10 @@ curso es **grupal**, en **español**, **con firma grupal**, y **cada integrante 
 
 | Integrante | Rol académico | Rol en la sala | Documenta | Expone |
 |---|---|---|---|---|
-| **Arteaga Rullier, Roberto** | Scrum Master + DevOps | @pm + @devops | alcance, backlog, decisiones, contenedores, CI, Kubernetes, observabilidad | láminas **1, 3, 7, 8, 10** |
-| **Díaz Cárdenas, Jorge Luis** | Backend | @dev | modelo de datos, reglas de negocio, API, pruebas de API | láminas **4, 5, 9** |
+| **Arteaga Rullier, Roberto** | Scrum Master + DevOps + Backend | @pm + @devops | alcance, backlog, decisiones, contenedores, CI, Kubernetes, observabilidad | láminas **1, 3, 7, 8, 10** |
 | **Inocencio Gargate, Dalcir** | Frontend + Documentador | @dev (SPA) + @documentador | SPA/UX, manual de usuario, actas, informe y PPTX | láminas **2, 6** |
 
-**Asistencia al Sprint 0:** los **3 integrantes** participaron de la sesión de cierre del 21/09/2026, cada uno
+**Asistencia al Sprint 0:** los **2 integrantes** participaron de la sesión de cierre del 21/09/2026, cada uno
 respondiendo por los bloques de su rol. La evidencia de cada bloque es la que está listada en §2 de esta acta
 (archivo o commit, no intención). El reparto de las **10 láminas** de la exposición y su respaldo documental
 están en `docs/backlog-sprints.md` §«Entregable académico».
@@ -123,7 +122,7 @@ salvo lo que se indica:
 | **D-20** | La documentación vive en `docs/` (raíz) y `docs/decisiones.md` se **cita**, no se reescribe |
 | **D-21** | Ante discrepancia entre criterio y seed, **manda el seed** y se corrige el criterio |
 | **D-22** | El DOCX y el PPTX de entrega académica los **cierra el dueño**; @documentador entrega el borrador |
-| **D-23** | **Entregable académico:** grupo de **3 integrantes** (Arteaga Rullier Roberto · Scrum Master+DevOps, Díaz Cárdenas Jorge Luis · Backend, Inocencio Gargate Dalcir · Frontend+Documentador), informe y exposición **en español** con **firma grupal**, **10 láminas concisas** con una idea por lámina, docente **Dr. Jack Harry Peralta Cáceres**; cada integrante documenta y expone su bloque |
+| **D-23** | **Entregable académico:** grupo de **2 integrantes** (Arteaga Rullier Roberto · Scrum Master+DevOps+Backend, Inocencio Gargate Dalcir · Frontend+Documentador), informe y exposición **en español** con **firma grupal**, **10 láminas concisas** con una idea por lámina, docente **Dr. Jack Harry Peralta Cáceres**; cada integrante documenta y expone su bloque |
 
 ---
 
