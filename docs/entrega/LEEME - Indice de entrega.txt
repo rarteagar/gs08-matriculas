@@ -1,0 +1,66 @@
+ENTREGA — TRABAJO COLABORATIVO
+Curso: Implementación de Soluciones para Plataformas Web · GS08 (ISP-08-2025)
+Docente: Dr. Jack Harry Peralta Cáceres
+Proyecto: GS08 · Matrículas y Notas — Proyecto Integrado
+Integrantes: Arteaga Rullier, Roberto Carlos (Scrum Master y DevOps) · Díaz Cárdenas, Jorge Luis
+             (Backend) · Inocencio Gargate, Dalcir (Frontend y Documentación)
+Fecha de entrega: 19 de octubre de 2026
+
+────────────────────────────────────────────────────────────────────────────
+CONTENIDO DE LA CARPETA
+
+1. Informe - GS08 Matriculas y Notas.docx / .pdf
+   Informe del proyecto (12 páginas): problema y alcance, arquitectura y stack, modelo de
+   datos, contrato del API, infraestructura y CI/CD, Kubernetes y observabilidad, calidad y
+   bugs, seguridad y ética, estado por sprint y la sección 12 con la capa de rúbrica
+   (MongoDB, Redis, GraphQL, OAuth2 con scopes, logging y accesibilidad WCAG 2.1 AA).
+
+2. Presentacion - GS08 Matriculas y Notas.pptx / .pdf
+   Exposición final (13 láminas): problema, arquitectura, API, recorrido del SPA, migración
+   a React 19, contenedores y CI, capa de rúbrica, Kubernetes y observabilidad, calidad,
+   seguridad y accesibilidad, producción verificada y cierre por sprint.
+
+3. Anexo - Documentacion tecnica.docx / .pdf
+   Documentación institucional (41 páginas): manual técnico (contrato de las 20 rutas y 35
+   operaciones, contenedores, variables, runbook de operación), arquitectura (7 secciones
+   con diagramas) y registro de decisiones (D-00 a D-32, con la justificación de cada una).
+
+4. LEEME - Indice de entrega.txt
+   Este archivo.
+
+────────────────────────────────────────────────────────────────────────────
+ENLACES
+
+• Repositorio público:  https://github.com/rarteagar/gs08-matriculas
+• Aplicación en producción: https://gs08-matriculas.mlarca.com   (HTTPS, Let's Encrypt)
+• Documentación interactiva del API (Swagger): https://gs08-matriculas.mlarca.com/docs
+• GraphQL (GraphiQL): https://gs08-matriculas.mlarca.com/graphql
+• Integración continua: https://github.com/rarteagar/gs08-matriculas/actions
+  (5 jobs: infraestructura, backend, frontend, imágenes y humo, puerta final)
+
+ACCESO DE DEMOSTRACIÓN
+  usuario: admin
+  contraseña: la indicada en el correo de entrega (no se escribe en los documentos).
+
+────────────────────────────────────────────────────────────────────────────
+ESTADO VERIFICADO (19/10/2026)
+
+• Backend: 121 pruebas automáticas, 90 % de cobertura; ruff sin observaciones.
+• Frontend: 25 pruebas (incluye batería de accesibilidad con axe-core); eslint y build OK.
+• Contraste WCAG: 14/14 pares de texto cumplen AA (4.5:1); anillo de foco 5.93:1.
+• Producción: health 200, login OAuth2 con 16 scopes, bitácora documental activa (MongoDB)
+  y 20/20 llamadas al health sin fallos; SPA React 19 sirviendo.
+• CI: en verde en el commit a2fffc9. CD: imágenes publicadas en GHCR en cada push a main.
+
+────────────────────────────────────────────────────────────────────────────
+DESVÍOS DECLARADOS (sustentados en el informe y en docs/decisiones.md)
+
+• API en FastAPI (la consigna dice Express.js): cumple REST y GraphQL; decisión A-04, con
+  plan B de un microservicio Express de un día si el docente lo exige por escrito.
+• SPA con React 19 + Vite + Tailwind (la consigna menciona Next.js): React y Tailwind están
+  cubiertos; Next.js no se usó porque la SPA es una aplicación de una sola página servida
+  por nginx y no necesita renderizado en servidor.
+• Kubernetes: manifiestos escritos y validados (11 objetos con kustomize), sin cluster real
+  desplegado por la decisión de no instalar minikube en la máquina del grupo (A-02).
+• Nube: VPS propio con Coolify + Traefik + Let's Encrypt en lugar de Netlify/AWS/Azure
+  (esas plataformas no pueden hospedar la API ni la base de datos del proyecto).

@@ -1,6 +1,6 @@
 # GS08 · Matrículas y Notas
 
-**Repositorio:** `D:\dev\equipo\gs08-matriculas` · **Rama:** `main` (`git branch --show-current`) · **Fecha de este README:** 21/09/2026
+**Repositorio:** https://github.com/rarteagar/gs08-matriculas · **Rama:** `main` · **Fecha de este README:** 19/10/2026
 **Entregable:** TD-01 de `docs/backlog-sprints.md` · **Redacta:** @documentador
 
 Reimplementación del sistema administrativo **PHP + MySQL** del curso Web III (`legacy/`) sobre un stack
@@ -12,6 +12,23 @@ sobre JWT (D-29), y el API tiene **segunda base documental en MongoDB, caché Re
 > **Alcance cerrado:** **39** criterios de aceptación con ID único `C-01`…`C-39` en `docs/alcance-mvp.md`
 > §4 (decisión D-18). Ese es el único denominador de «100 % de cobertura». Lo que **no** entra a la v1 está
 > en §5 del mismo documento: fue decisión, no olvido.
+
+## Entrega (19/10/2026)
+
+El paquete de entrega del trabajo colaborativo está en **[`docs/entrega/`](docs/entrega/)**:
+
+| Archivo | Qué es |
+|---|---|
+| [`docs/informe/informe-gs08-matriculas-2026-09-21.docx`](docs/informe/) / `.pdf` | Informe del proyecto (12 páginas, con la capa de rúbrica en la sección 12) |
+| [`docs/informe/exposicion-gs08-2026-10-13.pptx`](docs/informe/) / `.pdf` | Presentación de la exposición (13 láminas) |
+| `docs/entrega/Anexo - Documentacion tecnica.pdf` / `.docx` | Manual técnico + arquitectura + registro de decisiones (41 páginas) |
+| `docs/entrega/LEEME - Indice de entrega.txt` | Índice, enlaces y desvíos declarados |
+| `docs/entrega/GS08 - Matriculas y Notas - Trabajo Colaborativo.zip` | El paquete completo, listo para subir |
+
+**Producción:** https://gs08-matriculas.mlarca.com · **API (Swagger):** `/docs` · **GraphQL:** `/graphql` ·
+**Integración continua:** https://github.com/rarteagar/gs08-matriculas/actions
+
+Versión etiquetada: **`v1.0.0`**.
 
 ## Índice
 
