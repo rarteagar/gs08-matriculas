@@ -28,7 +28,7 @@ El paquete de entrega del trabajo colaborativo está en **[`docs/entrega/`](docs
 **Producción:** https://gs08-matriculas.mlarca.com · **API (Swagger):** `/docs` · **GraphQL:** `/graphql` ·
 **Integración continua:** https://github.com/rarteagar/gs08-matriculas/actions
 
-Versión etiquetada: **`v1.0.0`**.
+Versión etiquetada: **`v1.0.1`** (el grupo es de dos integrantes: Arteaga Rullier e Inocencio Gargate).
 
 ## Índice
 
