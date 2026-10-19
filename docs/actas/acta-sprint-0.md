@@ -152,7 +152,7 @@ cosas en los tres frentes. El detalle completo, con la evidencia de cada uno, es
 | Bloqueo | Comprobación | Dueño de destrabarlo |
 |---|---|---|
 | **Kubernetes real no existe** | `kubectl config current-context` → `error: current-context is not set`; `which minikube kind k3d k3s` → ninguno | **@user** (A-02: autorizar la instalación) · después @devops (T1.6/T4.1) |
-| **El repo no tiene remoto**, así que CI/CD no ha corrido nunca en GitHub | Los workflows existen y validan offline (`python scripts/validar_infra.py`), pero no hay push | @devops (T4.1) |
+| ~~El repo no tiene remoto~~ **RESUELTO (19/10/2026)**: el repositorio es público y el CI corre en GitHub | 5 jobs en verde en cada push a `main`; el CD publica imágenes y despliega en el VPS | @devops (T4.1) ✅ |
 | **La API real no existe** | `POST /api/v1/auth/login` → **404**; `docker compose build api` falla en `COPY requirements.txt` | @dev (T1.1, Sprint 1) |
 | **El SPA no existe** | `frontend/` solo tiene `Dockerfile` y la config de nginx | @dev (T2.4, Sprint 2) |
 | **Se desconoce la fecha de entrega y de exposición** | No hay dato | **@user** (A-01): sin ella los 4 sprints no se pueden fechar |

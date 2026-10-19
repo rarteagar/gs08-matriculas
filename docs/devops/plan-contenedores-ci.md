@@ -189,8 +189,8 @@ seccion 5). No voy a reportar `kubectl get pods` hasta que exista un cluster.
 
 Los workflows estan escritos con acciones fijadas por version (checkout v7.0.1, setup-python v7.0.0,
 setup-node v7.0.0, build-push-action v7.4.0, login-action v4.6.0, hadolint-action v3.5.0,
-upload-artifact v7.0.1, trivy-action v0.36.0). **No pueden correr todavia**: el repo no tiene remoto
-de GitHub ni credenciales. Lo que si se corrio, localmente, es el equivalente:
+upload-artifact v7.0.1, trivy-action v0.36.0). **Corren en GitHub desde el 13/10/2026**: el repositorio es público y los cinco jobs están en verde en cada
+push a `main`; las credenciales de despliegue (Coolify) se configuran como secret y variable del repositorio. Lo que si se corrio, localmente, es el equivalente:
 
 ```
 $ python scripts/validar_infra.py      -> 21 comprobaciones OK, 0 fallas   (YAML, JSON del dashboard,

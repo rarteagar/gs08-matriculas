@@ -164,7 +164,8 @@ después (`docker compose down -v`).
 
 - **Lo que no existe, se dice que no existe.** El login responde `404` hoy y así está escrito en el README,
   en el manual técnico y en la matriz de pruebas: el criterio aparece como *bloqueado por T1.1*, nunca como
-  cumplido. Lo mismo con Kubernetes (manifiestos listos, cluster no desplegado) y con el CI (sin remoto).
+  cumplido. Lo mismo con Kubernetes (se desplegó en local el 22/09/2026 y hoy el clúster está apagado) y con el CI
+  (hoy en verde en GitHub, con las corridas enlazadas en el manual técnico).
 - **Nada de cifras inventadas.** Los números que aparecen en los documentos salen de `psql`, de `curl` o de
   un script con salida pegada. La regla se aplica al equipo completo (`docs/backlog-sprints.md`, regla de
   evidencia), no solo a los documentos.

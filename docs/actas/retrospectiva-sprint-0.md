@@ -52,7 +52,7 @@ Dicho sin adornos, con quién y con qué se corrige:
 | **Se documentó un panel de Grafana con una métrica que no existe** | `http_requests_inprogress` **no** está en `prometheus-fastapi-instrumentator` 8.1.0: el panel salía vacío | Corregido: panel 4 reemplazado por «Errores 4xx (%)»; el hallazgo queda anotado en la retrospectiva |
 | **El job de Prometheus hacia nginx estaba en `down`** | Prometheus marcaba un target caído que nunca iba a levantarse (`ok\n` no es formato Prometheus) | Job eliminado + nota en `prometheus.yml`: nginx necesita su exporter |
 | **Kubernetes quedó sin evidencia de despliegue** | El criterio `C-37` está bloqueado y la sección de k8s de los documentos dice «manifiestos listos, cluster no desplegado»: es un hueco **declarado**, no escondido | A-02 (@user autoriza instalar minikube) → **T1.6/T4.1** (@devops) |
-| **El CI nunca corrió en GitHub** | Los workflows están escritos y validados offline, pero sin remoto no hay corrida real: `C-39` bloqueado | Push final → **T4.1** (@devops) |
+| ~~El CI nunca corrió en GitHub~~ **RESUELTO (19/10/2026)** | Repositorio público y cinco jobs en verde en cada push a `main`; `C-39` cerrado | T4.1 (@devops) ✅ |
 
 ---
 

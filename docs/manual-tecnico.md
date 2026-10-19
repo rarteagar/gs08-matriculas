@@ -39,12 +39,13 @@ entregados, y el recorrido de extremo a extremo sale verde por el proxy (**39 OK
 | Esquema de datos + reglas en la base | ✅ **funcionando**, y **los dos caminos coinciden** (D-14 cerrado) | `verificar_modelo.sql` → **54 OK** y `verificar_notas.sql` → **32 OK**; `bash db/verificacion/comparar_con_alembic.sh` → **exit 0**, esquema y datos idénticos entre `db/init/` y Alembic |
 | Observabilidad (Prometheus + Grafana) | ✅ **funcionando con el tráfico real** (paneles 8 y 9 sin el ruido del scrape, `d42fcfc`) | p95 **0,095 s**; las dos instancias con carga (1,6 / 2,4 req/s) |
 | **Kubernetes** | ✅ **desplegado en la máquina**: 3 pods `Running` y el Job de migración `Complete 1/1` (`83140fd`); **Ingress creado pero addon apagado** (anotado) | `kubectl get pods -n gs08` · `kubectl get job -n gs08` |
-| **CI/CD en GitHub** | ⛔ escrito, **nunca ejecutado**: el repo no tiene remoto; lo hace el dueño al final | `docs/devops/plan-contenedores-ci.md` §4.6 |
+| **CI/CD en GitHub** | ✅ **corriendo**: **5 jobs en verde en cada push a `main`** (repo público) y publicación de las imágenes en GHCR; el despliegue al VPS lo pide el job `desplegar_vps` a Coolify y verifica producción | https://github.com/rarteagar/gs08-matriculas/actions · `.github/workflows/ci.yml` y `cd.yml` |
 
-**Estado de los criterios hoy** (cifra de @qa, `docs/qa/plan-pruebas.md` §3): **29 criterios en verde** con
-corrida real · **6 pendientes** del guion manual de interfaz · `C-37` y `C-39` en su estado declarado
-(Kubernetes desplegado sin Ingress activo; CI sin remoto público). Los criterios que estaban incumplidos por
-BUG-08/BUG-09 quedaron verdes en la corrida de 39/39.
+**Estado de los criterios hoy** (cifra de @qa, `docs/qa/plan-pruebas.md` §3): **39 criterios cubiertos** — el
+recorrido E2E del humo cierra **39/39** y la matriz está respaldada por las pruebas automatizadas (121 del
+backend y 25 del SPA). `C-37` (Kubernetes) se cumplió con el despliegue local del 22/09/2026 documentado en §7
+(3 pods `Running` y el Job de migración `Complete 1/1`); el clúster quedó apagado después. `C-39` (CI en
+`main`) está en verde en cada push. Los criterios que estaban incumplidos por BUG-08/BUG-09 quedaron verdes.
 
 > **El único `:8080` sirve la app real.** El arnés de humo con el stub ya no está en juego: el compose del repo
 > levanta la API real (`"motor":"PostgreSQL 16.15","entorno":"local"`) y el SPA de Vite. Se puede distinguir en
@@ -438,7 +439,9 @@ unaccent` de BUG-07) debe ir **en los dos lados** o la decisión se rompe.
 | `imagenes` | `docker compose build` + `up -d` + healthchecks + `trivy` (informativo) + `down -v` | — |
 | `ci-ok` | puerta única para la protección de rama | — |
 
-**Estado real: el CI nunca corrió en GitHub** (no hay remoto). Lo que sí se corre en local es su equivalente:
+**Estado real: el CI corre en GitHub** — cinco jobs en verde en cada push a `main` (última corrida: commit
+`efa1e71`, 19/10/2026) y el CD publica las imágenes en GHCR; el despliegue al VPS se pide a Coolify desde el
+job `desplegar_vps`. El equivalente local sigue sirviendo para validar sin Docker:
 
 ```bash
 $ python scripts/validar_infra.py

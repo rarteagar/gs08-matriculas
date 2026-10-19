@@ -304,7 +304,7 @@ verifican en la pantalla de la boleta (§7); la prueba automática comprueba el 
 | `pytest` (C-03 y C-38, hash `$2y$`, pruebas negativas) | `backend/tests/` no existe todavía | T1.2/T3.2 |
 | Notas: editar y eliminar una nota | La API de notas hoy es GET + POST; el `PUT`/`DELETE` es T3.1 | Sprint 3 |
 | Kubernetes: 3/3 pods y respuesta por el ingress (C-37) | `kubectl` sin `current-context`; minikube/kind/k3s **no instalados**, y su instalación espera el OK del dueño (A-02) | T1.6 (@devops) |
-| CI en `main` (C-39) | El repo no tiene remoto | push final |
+| CI en `main` (C-39) | **Hecho**: 5 jobs en verde en cada push a `main` (repo público) | — |
 | Grafana con tráfico del **SPA real** (C-36) | Hoy el tráfico que llega es del stub | T2.6 |
 | Recorrido §3 en el navegador (§7) | El SPA real es T2.4 | Sprint 2 |
 | Prueba de carga formal | Fuera del alcance (§5 ítem 18) | no se hace |
