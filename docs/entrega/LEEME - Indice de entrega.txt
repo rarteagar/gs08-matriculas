@@ -38,7 +38,7 @@ ENLACES
 • Integración continua: https://github.com/rarteagar/gs08-matriculas/actions
   (5 jobs: infraestructura, backend, frontend, imágenes y humo, puerta final)
 
-ACCESO DE DEMOSTRACIÓN
+ACCESO DE DEMOSTRACIÓN (la demo se mantiene publicada hasta el 02/11/2026)
   usuario: admin
   contraseña: la indicada en el correo de entrega (no se escribe en los documentos).
 

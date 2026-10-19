@@ -226,6 +226,10 @@ fuentes (`GS08 - Matriculas y Notas - Fuentes.zip`).
 | PostgreSQL | `localhost:5432`, base `gs08_matriculas`, usuario `gs08` | `.env.example` |
 | Login de demo del seed | `admin` / `Admin123!` (o `admin@horizonte.edu.pe`) | `docs/analisis/datos-seed.md` |
 
+> **Demo temporal (D-34).** El sitio de producción se retira el **02/11/2026**. Hasta esa fecha el acceso es el
+> del seed y está publicado aquí a propósito; la base solo tiene datos ficticios, sin datos personales. No se
+> rota la clave porque el entorno se da de baja.
+
 **Son credenciales de desarrollo local.** Antes de cualquier entrega se cambian `POSTGRES_PASSWORD` y
 `SECRET_KEY` (`docs/devops/plan-contenedores-ci.md` §6). **Puertos publicados al host, todos solo en local:**
 `8080` (nginx/SPA), `8000` (API directa), `5432` (PostgreSQL), `9090` (Prometheus) y `3000` (Grafana), más el
