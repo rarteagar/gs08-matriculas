@@ -151,8 +151,10 @@ services:
     ports:
       - "${WEB_PORT:-8080}:8080"
     depends_on:
-      - api
-      - api-b
+      api:
+        condition: service_healthy
+      api-b:
+        condition: service_healthy
     networks: [gs08]
     logging: *default-logging
 

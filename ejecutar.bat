@@ -42,7 +42,9 @@ if %intento% GEQ 60 (
   echo     Revisa el detalle con:  docker compose logs --tail 60
   goto FIN
 )
-timeout /t 3 /nobreak >nul
+set /a resto=%intento% %% 10
+if %resto%==0 echo       ... esperando (%intento% de 60)
+ping -n 4 127.0.0.1 >nul
 goto ESPERA
 
 :LISTO
